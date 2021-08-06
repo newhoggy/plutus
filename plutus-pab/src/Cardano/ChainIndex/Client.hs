@@ -21,6 +21,7 @@ import           Ledger.Blockchain          (Block)
 import           Servant                    (NoContent, (:<|>) (..))
 import           Servant.Client             (ClientEnv, ClientError, ClientM, client, runClientM)
 
+import           Plutus.ChainIndex          (ChainIndexQueryEffect (..))
 import           Wallet.Effects             (AddressChangeRequest, AddressChangeResponse, ChainIndexEffect (..))
 
 healthCheck :: ClientM NoContent
@@ -52,3 +53,20 @@ handleChainIndexClient event = do
         WatchedAddresses   -> runClient watchedAddresses
         ConfirmedBlocks    -> runClient confirmedBlocks
         AddressChanged req -> runClient (addressChanged req)
+
+-- TODO Handle all chain index query effects
+handleChainIndexClient' ::
+  forall m effs.
+  ChainIndexQueryEffect
+  ~> Eff effs
+handleChainIndexClient' event = do
+    -- clientEnv <- ask
+    case event of
+      DatumFromHash _         -> undefined
+      ValidatorFromHash _     -> undefined
+      MintingPolicyFromHash _ -> undefined
+      TxOutFromRef _          -> undefined
+      TxFromTxId _            -> undefined
+      UtxoSetMembership _     -> undefined
+      UtxoSetAtAddress _      -> undefined
+      GetTip                  -> undefined

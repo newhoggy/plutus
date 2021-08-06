@@ -112,6 +112,7 @@ agentThread :: forall effs effs2.
     -> Eff effs2 ()
 agentThread wllt = walletAction wllt (startWatching $ walletAddress wllt) >> go where
     go = do
+        -- TODO reimplement using new chain index
         e <- sleep @effs @EmulatorMessage Sleeping
         let notis = maybeToList e >>= \case
                 NewSlot blocks slot -> fmap BlockValidated blocks ++ [SlotChanged slot]

@@ -73,14 +73,14 @@ initialFee = Ada.lovelaceValueOf 1
 
 tests :: TestTree
 tests = testGroup "Stablecoin"
-    [ checkPredicate "mint reservecoins"
+    [ checkPredicateOld "mint reservecoins"
         (valueAtAddress stablecoinAddress (== (initialDeposit <> initialFee))
         .&&. assertNoFailedTransactions
         .&&. walletFundsChange user (Stablecoin.reserveCoins coin 100 <> negate (initialDeposit <> initialFee))
         )
         $ initialise >>= mintReserveCoins (RC 100) one
 
-    , checkPredicate "mint reservecoins and stablecoins"
+    , checkPredicateOld "mint reservecoins and stablecoins"
         (valueAtAddress stablecoinAddress (== (initialDeposit <> initialFee <> Ada.lovelaceValueOf 50))
         .&&. assertNoFailedTransactions
         .&&. walletFundsChange user (Stablecoin.stableCoins coin 50 <> Stablecoin.reserveCoins coin 100 <> negate (initialDeposit <> initialFee <> Ada.lovelaceValueOf 50))
@@ -91,7 +91,7 @@ tests = testGroup "Stablecoin"
             -- Mint 50 stablecoins at a rate of 1 Ada: 1 USD
             void $ mintStableCoins (SC 50) one hdl
 
-    , checkPredicate "mint reservecoins, stablecoins and redeem stablecoin at a different price"
+    , checkPredicateOld "mint reservecoins, stablecoins and redeem stablecoin at a different price"
         (valueAtAddress stablecoinAddress (== (initialDeposit <> initialFee <> Ada.lovelaceValueOf 30))
         .&&. assertNoFailedTransactions
         .&&. walletFundsChange user (Stablecoin.stableCoins coin 40 <> Stablecoin.reserveCoins coin 100 <> negate (initialDeposit <> initialFee <> Ada.lovelaceValueOf 30))
@@ -99,7 +99,7 @@ tests = testGroup "Stablecoin"
         stablecoinTrace
 
     , let expectedLogMsg = "New state is invalid: MaxReserves {allowed = BC {unBC = (200 % 1)}, actual = BC {unBC = (201 % 1)}}. The transition is not allowed." in
-      checkPredicate "Cannot exceed the maximum reserve ratio"
+      checkPredicateOld "Cannot exceed the maximum reserve ratio"
         (valueAtAddress stablecoinAddress (== (initialDeposit <> initialFee <> Ada.lovelaceValueOf 50))
         .&&. assertNoFailedTransactions
         .&&. assertInstanceLog (Trace.walletInstanceTag $ Wallet 1) ((==) (Just expectedLogMsg) . listToMaybe . reverse . mapMaybe (preview (eteEvent . cilMessage . _ContractLog)))

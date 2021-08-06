@@ -211,7 +211,7 @@ contribute cmp = endpoint @"contribute" $ \Contribution{contribValue} -> do
                 <> Constraints.mustValidateIn (Interval.to (campaignDeadline cmp))
     txid <- fmap txId (submitTxConstraints inst tx)
 
-    utxo <- watchAddressUntilTime (Scripts.validatorAddress inst) $ campaignCollectionDeadline cmp
+    utxo <- watchAddressUntilTimeOld (Scripts.validatorAddress inst) $ campaignCollectionDeadline cmp
 
     -- 'utxo' is the set of unspent outputs at the campaign address at the
     -- collection deadline. If 'utxo' still contains our own contribution
@@ -240,7 +240,7 @@ scheduleCollection cmp = endpoint @"schedule collection" $ \() -> do
     logInfo @Text "Campaign started. Waiting for campaign deadline to collect funds."
 
     _ <- awaitTime $ campaignDeadline cmp
-    unspentOutputs <- utxoAt (Scripts.validatorAddress inst)
+    unspentOutputs <- utxoAtOld (Scripts.validatorAddress inst)
 
     let tx = Typed.collectFromScript unspentOutputs Collect
             <> Constraints.mustValidateIn (collectionRange cmp)

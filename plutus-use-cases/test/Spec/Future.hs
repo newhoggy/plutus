@@ -37,12 +37,12 @@ import qualified PlutusTx
 tests :: TestTree
 tests =
     testGroup "futures"
-    [ checkPredicate "setup tokens"
+    [ checkPredicateOld "setup tokens"
         (assertDone (F.setupTokens @() @FutureSchema @FutureError)
                     (Trace.walletInstanceTag w1) (const True) "setupTokens")
         $ void F.setupTokensTrace
 
-    , checkPredicate "can initialise and obtain tokens"
+    , checkPredicateOld "can initialise and obtain tokens"
         (    walletFundsChange w1 ( scale (-1) (F.initialMargin $ theFuture startTime)
                                  <> F.tokenFor Short F.testAccounts
                                   )
@@ -52,17 +52,17 @@ tests =
         )
         (void (initContract >> joinFuture))
 
-    , checkPredicate "can increase margin"
+    , checkPredicateOld "can increase margin"
         (assertAccountBalance (ftoShort F.testAccounts) (== Ada.lovelaceValueOf 1936)
         .&&. assertAccountBalance (ftoLong F.testAccounts) (== Ada.lovelaceValueOf 2410))
         increaseMarginTrace
 
-    , checkPredicate "can settle early"
+    , checkPredicateOld "can settle early"
         (assertAccountBalance (ftoShort F.testAccounts) (== Ada.lovelaceValueOf 0)
         .&&. assertAccountBalance (ftoLong F.testAccounts) (== Ada.lovelaceValueOf 4246))
         settleEarlyTrace
 
-     , checkPredicate "can pay out"
+     , checkPredicateOld "can pay out"
         (assertAccountBalance (ftoShort F.testAccounts) (== Ada.lovelaceValueOf 1936)
         .&&. assertAccountBalance (ftoLong F.testAccounts) (== Ada.lovelaceValueOf 2310))
         payOutTrace

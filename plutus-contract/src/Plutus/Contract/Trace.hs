@@ -31,9 +31,9 @@ module Plutus.Contract.Trace
     , handleCurrentSlotQueries
     , handleCurrentTimeQueries
     , handleUnbalancedTransactions
-    , handlePendingTransactions
-    , handleUtxoQueries
-    , handleAddressChangedAtQueries
+    , handlePendingTransactionsOld
+    , handleUtxoQueriesOld
+    , handleAddressChangedAtQueriesOld
     , handleOwnInstanceIdQueries
     -- * Initial distributions of emulated chains
     , InitialDistribution
@@ -66,6 +66,7 @@ import qualified Plutus.Contract.Trace.RequestHandler as RequestHandler
 import qualified Ledger.Ada                           as Ada
 import           Ledger.Value                         (Value)
 
+import           Plutus.ChainIndex                    (ChainIndexQueryEffect)
 import           Plutus.Trace.Emulator.Types          (EmulatedWalletEffects)
 import           Wallet.API                           (ChainIndexEffect)
 import           Wallet.Effects                       (NodeClientEffect, WalletEffect)
@@ -139,10 +140,11 @@ handleBlockchainQueries ::
         PABResp
 handleBlockchainQueries =
     handleUnbalancedTransactions
-    <> handlePendingTransactions
-    <> handleUtxoQueries
+    <> handlePendingTransactionsOld
+    <> handleChainIndexQueries
+    <> handleUtxoQueriesOld
     <> handleOwnPubKeyQueries
-    <> handleAddressChangedAtQueries
+    <> handleAddressChangedAtQueriesOld
     <> handleOwnInstanceIdQueries
     <> handleSlotNotifications
     <> handleCurrentSlotQueries
@@ -161,42 +163,55 @@ handleUnbalancedTransactions =
         (E.BalanceTxResp . either E.BalanceTxFailed E.BalanceTxSuccess)
         RequestHandler.handleUnbalancedTransactions
 
+{-# DEPRECATED handlePendingTransactionsOld "Uses old chain index" #-}
 -- | Submit the wallet's pending transactions to the blockchain
 --   and inform all wallets about new transactions and respond to
 --   UTXO queries
-handlePendingTransactions ::
+handlePendingTransactionsOld ::
     ( Member (LogObserve (LogMessage Text)) effs
     , Member (LogMsg RequestHandlerLogMsg) effs
     , Member WalletEffect effs
     , Member ChainIndexEffect effs
     )
     => RequestHandler effs PABReq PABResp
-handlePendingTransactions =
+handlePendingTransactionsOld =
     generalise
         (preview E._WriteBalancedTxReq)
         (E.WriteBalancedTxResp . either E.WriteBalancedTxFailed E.WriteBalancedTxSuccess)
-        RequestHandler.handlePendingTransactions
+        RequestHandler.handlePendingTransactionsOld
 
+{-# DEPRECATED handleUtxoQueriesOld "Uses old chain index" #-}
 -- | Look at the "utxo-at" requests of the contract and respond to all of them
 --   with the current UTXO set at the given address.
-handleUtxoQueries ::
+handleUtxoQueriesOld ::
     ( Member (LogObserve (LogMessage Text)) effs
     , Member (LogMsg RequestHandlerLogMsg) effs
     , Member ChainIndexEffect effs
     )
     => RequestHandler effs PABReq PABResp
-handleUtxoQueries =
-    generalise (preview E._UtxoAtReq) E.UtxoAtResp RequestHandler.handleUtxoQueries
+handleUtxoQueriesOld =
+    generalise (preview E._UtxoAtReq) E.UtxoAtResp RequestHandler.handleUtxoQueriesOld
 
-handleAddressChangedAtQueries ::
+handleChainIndexQueries ::
+    ( Member (LogObserve (LogMessage Text)) effs
+    , Member ChainIndexQueryEffect effs
+    )
+    => RequestHandler effs PABReq PABResp
+handleChainIndexQueries =
+    generalise (preview E._ChainIndexQueryReq)
+               E.ChainIndexQueryResp
+               RequestHandler.handleChainIndexQueries
+
+{-# DEPRECATED handleAddressChangedAtQueriesOld "Uses old chain index" #-}
+handleAddressChangedAtQueriesOld ::
     ( Member (LogObserve (LogMessage Text)) effs
     , Member (LogMsg RequestHandlerLogMsg) effs
     , Member ChainIndexEffect effs
     , Member NodeClientEffect effs
     )
     => RequestHandler effs PABReq PABResp
-handleAddressChangedAtQueries =
-    generalise (preview E._AddressChangeReq) E.AddressChangeResp RequestHandler.handleAddressChangedAtQueries
+handleAddressChangedAtQueriesOld =
+    generalise (preview E._AddressChangeReq) E.AddressChangeResp RequestHandler.handleAddressChangedAtQueriesOld
 
 handleOwnPubKeyQueries ::
     ( Member (LogObserve (LogMessage Text)) effs

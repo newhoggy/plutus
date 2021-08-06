@@ -22,7 +22,7 @@ import           Test.Tasty
 
 tests :: TestTree
 tests = testGroup "simple-escrow"
-    [ checkPredicate "can lock some value in the contract"
+    [ checkPredicateOld "can lock some value in the contract"
         ( walletFundsChange w1 (Ada.lovelaceValueOf (-10))
           .&&. walletFundsChange w2 mempty
         )
@@ -32,7 +32,7 @@ tests = testGroup "simple-escrow"
 
             hdl <- Trace.activateContractWallet w1 lockEp
             Trace.callEndpoint @"lock" hdl params
-    , checkPredicateOptions options "can lock and redeem"
+    , checkPredicateOptionsOld options "can lock and redeem"
         ( walletFundsChange w1 (token1 (-10) <> token2 5)
           .&&. walletFundsChange w2 (token1 10 <> token2 (-5))
         )
@@ -46,7 +46,7 @@ tests = testGroup "simple-escrow"
 
             hdl2 <- Trace.activateContractWallet w2 (void redeemEp)
             void $ Trace.callEndpoint @"redeem" hdl2 params
-    , checkPredicate "can lock and refund"
+    , checkPredicateOld "can lock and refund"
         ( walletFundsChange w1 mempty
           .&&. walletFundsChange w2 mempty
         )
@@ -59,7 +59,7 @@ tests = testGroup "simple-escrow"
 
             void $ Trace.waitNSlots 100
             void $ Trace.callEndpoint @"refund" hdl params
-    , checkPredicate "only locking wallet can request refund"
+    , checkPredicateOld "only locking wallet can request refund"
         ( walletFundsChange w1 (Ada.lovelaceValueOf (-100))
           .&&. walletFundsChange w2 mempty
         )
@@ -73,7 +73,7 @@ tests = testGroup "simple-escrow"
             hdl2 <- Trace.activateContractWallet w2 (void refundEp)
             void $ Trace.waitNSlots 100
             void $ Trace.callEndpoint @"refund" hdl2 params
-    , checkPredicateOptions options "can't redeem if you can't pay"
+    , checkPredicateOptionsOld options "can't redeem if you can't pay"
         ( walletFundsChange w1 (token1 (-10))
           .&&. walletFundsChange w2 mempty
         )

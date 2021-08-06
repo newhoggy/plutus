@@ -30,7 +30,6 @@ import           Ledger.Address                   (Address)
 import           Ledger.AddressMap                (AddressMap)
 import           Plutus.PAB.Monitoring.Monitoring (convertLog, handleLogMsgTrace)
 import           Wallet.Effects                   (ChainIndexEffect)
-import qualified Wallet.Effects                   as WalletEffects
 import           Wallet.Emulator.ChainIndex       (ChainIndexControlEffect, ChainIndexEvent)
 import qualified Wallet.Emulator.ChainIndex       as ChainIndex
 import           Wallet.Emulator.NodeClient       (ChainClientNotification (BlockValidated, SlotChanged))
@@ -39,13 +38,13 @@ healthcheck :: Monad m => m NoContent
 healthcheck = pure NoContent
 
 startWatching :: (Member ChainIndexEffect effs) => Address -> Eff effs NoContent
-startWatching addr = WalletEffects.startWatching addr >> pure NoContent
+startWatching addr = startWatching addr >> pure NoContent
 
 watchedAddresses :: (Member ChainIndexEffect effs) => Eff effs AddressMap
-watchedAddresses = WalletEffects.watchedAddresses
+watchedAddresses = watchedAddresses
 
 confirmedBlocks :: (Member ChainIndexEffect effs) => Eff effs [Block]
-confirmedBlocks = WalletEffects.confirmedBlocks
+confirmedBlocks = confirmedBlocks
 
 -- | Update the chain index by asking the node for new blocks since the last
 --   time.

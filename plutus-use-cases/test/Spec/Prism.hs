@@ -184,14 +184,14 @@ finalPredicate _ =
     assertNotDone @_ @() @C.MirrorSchema            C.mirror            (Trace.walletInstanceTag mirror)            "Mirror stopped"
 
 prop_Prism :: Actions PrismModel -> Property
-prop_Prism = propRunActions @PrismModel spec finalPredicate
+prop_Prism = propRunActionsOld @PrismModel spec finalPredicate
     where
         spec = [ ContractInstanceSpec (UserH w) w                 C.subscribeSTO | w <- users ] ++
                [ ContractInstanceSpec MirrorH   mirror            C.mirror ]
 
 tests :: TestTree
 tests = testGroup "PRISM"
-    [ checkPredicate "withdraw"
+    [ checkPredicateOld "withdraw"
         (assertNotDone contract (Trace.walletInstanceTag user) "User stopped"
         .&&. walletFundsChange issuer (Ada.lovelaceValueOf numTokens)
         .&&. walletFundsChange user (Ada.lovelaceValueOf (negate numTokens) <> STO.coins stoData numTokens)

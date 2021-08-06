@@ -34,20 +34,20 @@ tests :: TestTree
 tests =
     let con = vestingContract (vesting startTime) in
     testGroup "vesting"
-    [ checkPredicate "secure some funds with the vesting script"
+    [ checkPredicateOld "secure some funds with the vesting script"
         (walletFundsChange w2 (Numeric.negate $ totalAmount $ vesting startTime))
         $ do
             hdl <- Trace.activateContractWallet w2 con
             Trace.callEndpoint @"vest funds" hdl ()
             void $ Trace.waitNSlots 1
 
-    , checkPredicate "retrieve some funds"
+    , checkPredicateOld "retrieve some funds"
         (walletFundsChange w2 (Numeric.negate $ totalAmount $ vesting startTime)
         .&&. assertNoFailedTransactions
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf 10))
         retrieveFundsTrace
 
-    , checkPredicate "cannot retrieve more than allowed"
+    , checkPredicateOld "cannot retrieve more than allowed"
         (walletFundsChange w1 mempty
         .&&. assertContractError con (Trace.walletInstanceTag w1) (== expectedError) "error should match")
         $ do
@@ -58,7 +58,7 @@ tests =
             Trace.callEndpoint @"retrieve funds" hdl1 (Ada.lovelaceValueOf 30)
             void $ Trace.waitNSlots 1
 
-    , checkPredicate "can retrieve everything at the end"
+    , checkPredicateOld "can retrieve everything at the end"
         (walletFundsChange w1 (totalAmount $ vesting startTime)
         .&&. assertNoFailedTransactions
         .&&. assertDone con (Trace.walletInstanceTag w1) (const True) "should be done")

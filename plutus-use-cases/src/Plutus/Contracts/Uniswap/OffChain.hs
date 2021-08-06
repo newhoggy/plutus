@@ -372,7 +372,7 @@ swap us SwapParams{..} = do
 -- This merely inspects the blockchain and does not issue any transactions.
 pools :: forall w s. Uniswap -> Contract w s Text [((Coin A, Amount A), (Coin B, Amount B))]
 pools us = do
-    utxos <- utxoAt (uniswapAddress us)
+    utxos <- utxoAtOld (uniswapAddress us)
     go $ snd <$> Map.toList utxos
   where
     go :: [TxOutTx] -> Contract w s Text [((Coin A, Amount A), (Coin B, Amount B))]
@@ -402,7 +402,7 @@ pools us = do
 funds :: forall w s. Contract w s Text Value
 funds = do
     pkh <- pubKeyHash <$> ownPubKey
-    os  <- map snd . Map.toList <$> utxoAt (pubKeyHashAddress pkh)
+    os  <- map snd . Map.toList <$> utxoAtOld (pubKeyHashAddress pkh)
     return $ mconcat [txOutValue $ txOutTxOut o | o <- os]
 
 getUniswapDatum :: TxOutTx -> Contract w s Text UniswapDatum
@@ -418,7 +418,7 @@ findUniswapInstance :: forall a b w s. Uniswap -> Coin b -> (UniswapDatum -> May
 findUniswapInstance us c f = do
     let addr = uniswapAddress us
     logInfo @String $ printf "looking for Uniswap instance at address %s containing coin %s " (show addr) (show c)
-    utxos <- utxoAt addr
+    utxos <- utxoAtOld addr
     go  [x | x@(_, o) <- Map.toList utxos, isUnity (txOutValue $ txOutTxOut o) c]
   where
     go [] = throwError "Uniswap instance not found"

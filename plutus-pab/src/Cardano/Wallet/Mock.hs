@@ -27,7 +27,7 @@ import           Cardano.Wallet.Types                (MultiWalletEffect (..), Wa
                                                       WalletMsg (..), Wallets)
 import           Control.Concurrent                  (MVar)
 import           Control.Concurrent.MVar             (putMVar, takeMVar)
-import           Control.Lens                        (at, (.~))
+import           Control.Lens                        (at, (?~))
 import           Control.Monad.Error                 (MonadError)
 import qualified Control.Monad.Except                as MonadError
 import           Control.Monad.Freer
@@ -141,9 +141,9 @@ handleMultiWallet feeCfg = \case
                 (x, newState) <- runState walletState
                     $ action
                         & raiseEnd
-                        & interpret (Wallet.handleWallet feeCfg)
+                        & interpret (Wallet.handleWalletOld feeCfg)
                         & interpret (mapLog @TxBalanceMsg @WalletMsg Balancing)
-                put @Wallets (wallets & at wallet .~ Just newState)
+                put @Wallets (wallets & at wallet ?~ newState)
                 pure x
             Nothing -> throwError $ WAPI.OtherError "Wallet not found"
     CreateWallet -> do
@@ -156,10 +156,10 @@ handleMultiWallet feeCfg = \case
         -- For some reason this doesn't work with (Wallet 1)/privateKey1,
         -- works just fine with (Wallet 2)/privateKey2
         -- ¯\_(ツ)_/¯
-        let walletState = WalletState privateKey2 emptyNodeClientState mempty (defaultSigningProcess (Wallet 2))
+        let walletState = WalletState privateKey2 emptyNodeClientState mempty mempty (defaultSigningProcess (Wallet 2))
         _ <- evalState walletState $
             interpret (mapLog @TxBalanceMsg @WalletMsg Balancing)
-            $ interpret (Wallet.handleWallet feeCfg)
+            $ interpret (Wallet.handleWalletOld feeCfg)
             $ distributeNewWalletFunds pubKey
         WalletEffects.startWatching (pubKeyAddress pubKey)
         return $ WalletInfo{wiWallet = wallet, wiPubKey = pubKey, wiPubKeyHash = pubKeyHash pubKey}

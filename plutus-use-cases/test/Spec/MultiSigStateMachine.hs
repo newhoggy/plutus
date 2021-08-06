@@ -33,25 +33,25 @@ import qualified Test.Tasty.HUnit                      as HUnit
 tests :: TestTree
 tests =
     testGroup "multi sig state machine tests"
-    [ checkPredicate "lock, propose, sign 3x, pay - SUCCESS"
+    [ checkPredicateOld "lock, propose, sign 3x, pay - SUCCESS"
         (assertNoFailedTransactions
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-10))
         .&&. walletFundsChange w2 (Ada.lovelaceValueOf 5))
         (lockProposeSignPay 3 1)
 
-    , checkPredicate "lock, propose, sign 2x, pay - FAILURE"
+    , checkPredicateOld "lock, propose, sign 2x, pay - FAILURE"
         (assertNotDone (MS.contract  @MS.MultiSigError params) (Trace.walletInstanceTag w1) "contract should proceed after invalid transition"
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-10))
         .&&. walletFundsChange w2 (Ada.lovelaceValueOf 0))
         (lockProposeSignPay 2 1)
 
-    , checkPredicate "lock, propose, sign 3x, pay x2 - SUCCESS"
+    , checkPredicateOld "lock, propose, sign 3x, pay x2 - SUCCESS"
         (assertNoFailedTransactions
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-10))
         .&&. walletFundsChange w2 (Ada.lovelaceValueOf 10))
         (lockProposeSignPay 3 2)
 
-    , checkPredicate "lock, propose, sign 3x, pay x3 - FAILURE"
+    , checkPredicateOld "lock, propose, sign 3x, pay x3 - FAILURE"
         (assertNotDone (MS.contract  @MS.MultiSigError params) (Trace.walletInstanceTag w2) "contract should proceed after invalid transition"
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-10))
         .&&. walletFundsChange w2 (Ada.lovelaceValueOf 10))

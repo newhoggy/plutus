@@ -33,20 +33,20 @@ module Plutus.Contract.StateMachine(
     , defaultChooser
     , getStates
     -- * Running the state machine
-    , runGuardedStep
-    , runStep
-    , runInitialise
-    , runGuardedStepWith
-    , runStepWith
-    , runInitialiseWith
+    , runGuardedStepOld
+    , runStepOld
+    , runInitialiseOld
+    , runGuardedStepWithOld
+    , runStepWithOld
+    , runInitialiseWithOld
     , getThreadToken
-    , getOnChainState
-    , waitForUpdate
-    , waitForUpdateUntilSlot
-    , waitForUpdateUntilTime
+    , getOnChainStateOld
+    , waitForUpdateOld
+    , waitForUpdateUntilSlotOld
+    , waitForUpdateUntilTimeOld
     -- * Lower-level API
     , StateMachineTransition(..)
-    , mkStep
+    , mkStepOld
     -- * Re-exports
     , Void
     ) where
@@ -191,19 +191,20 @@ mkStateMachineClient inst =
         , scChooser
         }
 
+{-# DEPRECATED getOnChainStateOld "Uses old chain index" #-}
 {-| Get the current on-chain state of the state machine instance.
     Return Nothing if there is no state on chain.
     Throws an @SMContractError@ if the number of outputs at the machine address is greater than one.
 -}
-getOnChainState ::
+getOnChainStateOld ::
     ( AsSMContractError e
     , PlutusTx.FromData state
     , PlutusTx.ToData state
     )
     => StateMachineClient state i
     -> Contract w schema e (Maybe (OnChainState state i, UtxoMap))
-getOnChainState StateMachineClient{scInstance, scChooser} = mapError (review _SMContractError) $ do
-    utxo <- utxoAt (SM.machineAddress scInstance)
+getOnChainStateOld StateMachineClient{scInstance, scChooser} = mapError (review _SMContractError) $ do
+    utxo <- utxoAtOld (SM.machineAddress scInstance)
     let states = getStates scInstance utxo
     case states of
         [] -> pure Nothing
@@ -220,12 +221,13 @@ data WaitingResult a
   deriving anyclass (ToJSON, FromJSON)
 
 
+{-# DEPRECATED waitForUpdateUntilSlotOld "Uses old chain index" #-}
 -- | Wait for the on-chain state of the state machine instance to change until timeoutSlot,
 --   and return the new state, or return 'ContractEnded' if the instance has been
 --   terminated. If 'waitForUpdate' is called before the instance has even
 --   started then it returns the first state of the instance as soon as it
 --   has started.
-waitForUpdateUntilSlot ::
+waitForUpdateUntilSlotOld ::
     ( AsSMContractError e
     , AsContractError e
     , PlutusTx.FromData state
@@ -234,10 +236,10 @@ waitForUpdateUntilSlot ::
     => StateMachineClient state i
     -> Slot
     -> Contract w schema e (WaitingResult state)
-waitForUpdateUntilSlot StateMachineClient{scInstance, scChooser} timeoutSlot = do
+waitForUpdateUntilSlotOld StateMachineClient{scInstance, scChooser} timeoutSlot = do
     let addr = Scripts.validatorAddress $ typedValidator scInstance
     let go sl = do
-            txns <- fmap acrTxns . awaitPromise $ addressChangeRequest AddressChangeRequest
+            txns <- fmap acrTxns . awaitPromise $ addressChangeRequestOld AddressChangeRequest
                 { acreqSlotRangeFrom = sl
                 , acreqSlotRangeTo = sl
                 , acreqAddress = addr
@@ -257,8 +259,9 @@ waitForUpdateUntilSlot StateMachineClient{scInstance, scChooser} timeoutSlot = d
                 Left err         -> throwing _SMContractError err
                 Right (state, _) -> pure $ WaitingResult (tyTxOutData state)
 
+{-# DEPRECATED waitForUpdateUntilTimeOld "Uses old chain index" #-}
 -- | Same as 'waitForUpdateUntilSlot', but works with 'POSIXTime' instead.
-waitForUpdateUntilTime ::
+waitForUpdateUntilTimeOld ::
     ( AsSMContractError e
     , AsContractError e
     , PlutusTx.FromData state
@@ -267,15 +270,16 @@ waitForUpdateUntilTime ::
     => StateMachineClient state i
     -> POSIXTime
     -> Contract w schema e (WaitingResult state)
-waitForUpdateUntilTime sm timeoutTime = do
-    waitForUpdateUntilSlot sm $ TimeSlot.posixTimeToEnclosingSlot def timeoutTime
+waitForUpdateUntilTimeOld sm timeoutTime = do
+    waitForUpdateUntilSlotOld sm $ TimeSlot.posixTimeToEnclosingSlot def timeoutTime
 
+{-# DEPRECATED waitForUpdateOld "Uses old chain index" #-}
 -- | Wait until the on-chain state of the state machine instance has changed,
 --   and return the new state, or return 'Nothing' if the instance has been
 --   terminated. If 'waitForUpdate' is called before the instance has even
 --   started then it returns the first state of the instance as soon as it
 --   has started.
-waitForUpdate ::
+waitForUpdateOld ::
     ( AsSMContractError e
     , AsContractError e
     , PlutusTx.FromData state
@@ -283,18 +287,19 @@ waitForUpdate ::
     )
     => StateMachineClient state i
     -> Contract w schema e (Maybe (OnChainState state i))
-waitForUpdate StateMachineClient{scInstance, scChooser} = do
+waitForUpdateOld StateMachineClient{scInstance, scChooser} = do
     let addr = Scripts.validatorAddress $ typedValidator scInstance
-    txns <- nextTransactionsAt addr
+    txns <- nextTransactionsAtOld addr
     let states = txns >>= getStates scInstance . outputsMapFromTxForAddress addr
     case states of
         [] -> pure Nothing
         xs -> either (throwing _SMContractError) (pure . Just) (scChooser xs)
 
+{-# DEPRECATED runGuardedStepOld "Uses old chain index" #-}
 -- | Tries to run one step of a state machine: If the /guard/ (the last argument) returns @'Nothing'@ when given the
 -- unbalanced transaction to be submitted, the old state and the new step, the step is run and @'Right'@ the new state is returned.
 -- If the guard returns @'Just' a@, @'Left' a@ is returned instead.
-runGuardedStep ::
+runGuardedStepOld ::
     forall w a e state schema input.
     ( AsSMContractError e
     , PlutusTx.FromData state
@@ -305,10 +310,11 @@ runGuardedStep ::
     -> input                                       -- ^ The input to apply to the state machine
     -> (UnbalancedTx -> state -> state -> Maybe a) -- ^ The guard to check before running the step
     -> Contract w schema e (Either a (TransitionResult state input))
-runGuardedStep = runGuardedStepWith mempty mempty
+runGuardedStepOld = runGuardedStepWithOld mempty mempty
 
+{-# DEPRECATED runStepOld "Uses old chain index" #-}
 -- | Run one step of a state machine, returning the new state.
-runStep ::
+runStepOld ::
     forall w e state schema input.
     ( AsSMContractError e
     , PlutusTx.FromData state
@@ -320,7 +326,7 @@ runStep ::
     -> input
     -- ^ The input to apply to the state machine
     -> Contract w schema e (TransitionResult state input)
-runStep = runStepWith mempty mempty
+runStepOld = runStepWithOld mempty mempty
 
 -- | Create a thread token. The thread token contains a reference to an unspent output of the wallet,
 -- so it needs to used with 'mkStateMachine' immediately, and the machine must be initialised,
@@ -330,8 +336,9 @@ getThreadToken = mapError (review _SMContractError) $ do
     txOutRef <- getUnspentOutput
     pure $ ThreadToken txOutRef (scriptCurrencySymbol (curPolicy txOutRef))
 
+{-# DEPRECATED runInitialiseOld "Uses old chain index" #-}
 -- | Initialise a state machine
-runInitialise ::
+runInitialiseOld ::
     forall w e state schema input.
     ( PlutusTx.FromData state
     , PlutusTx.ToData state
@@ -345,7 +352,7 @@ runInitialise ::
     -> Value
     -- ^ The value locked by the contract at the beginning
     -> Contract w schema e state
-runInitialise = runInitialiseWith mempty mempty
+runInitialiseOld = runInitialiseWithOld mempty mempty
 
 -- | Constraints & lookups needed to transition a state machine instance
 data StateMachineTransition state input =
@@ -356,8 +363,9 @@ data StateMachineTransition state input =
         , smtLookups     :: ScriptLookups (StateMachine state input)
         }
 
+{-# DEPRECATED runInitialiseWithOld "Uses old chain index" #-}
 -- | Initialise a state machine and supply additional constraints and lookups for transaction.
-runInitialiseWith ::
+runInitialiseWithOld ::
     forall w e state schema input.
     ( PlutusTx.FromData state
     , PlutusTx.ToData state
@@ -375,9 +383,9 @@ runInitialiseWith ::
     -> Value
     -- ^ The value locked by the contract at the beginning
     -> Contract w schema e state
-runInitialiseWith customLookups customConstraints StateMachineClient{scInstance} initialState initialValue = mapError (review _SMContractError) $ do
+runInitialiseWithOld customLookups customConstraints StateMachineClient{scInstance} initialState initialValue = mapError (review _SMContractError) $ do
     ownPK <- ownPubKey
-    utxo <- utxoAt (Ledger.pubKeyAddress ownPK) -- TODO: use chain index
+    utxo <- utxoAtOld (Ledger.pubKeyAddress ownPK) -- TODO: use chain index
     let StateMachineInstance{stateMachine, typedValidator} = scInstance
         constraints = mustPayToTheScript initialState (initialValue <> SM.threadTokenValueOrZero scInstance)
             <> foldMap ttConstraints (smThreadToken stateMachine)
@@ -394,8 +402,9 @@ runInitialiseWith customLookups customConstraints StateMachineClient{scInstance}
     submitTxConfirmed utx
     pure initialState
 
+{-# DEPRECATED runStepWithOld "Uses old chain index" #-}
 -- | Run one step of a state machine, returning the new state. We can supply additional constraints and lookups for transaction.
-runStepWith ::
+runStepWithOld ::
     forall w e state schema input.
     ( AsSMContractError e
     , PlutusTx.FromData state
@@ -411,13 +420,14 @@ runStepWith ::
     -> input
     -- ^ The input to apply to the state machine
     -> Contract w schema e (TransitionResult state input)
-runStepWith lookups constraints smc input =
-    runGuardedStepWith lookups constraints smc input (\_ _ _ -> Nothing) >>= pure . \case
+runStepWithOld lookups constraints smc input =
+    runGuardedStepWithOld lookups constraints smc input (\_ _ _ -> Nothing) >>= pure . \case
         Left a  -> absurd a
         Right a -> a
 
+{-# DEPRECATED runGuardedStepWithOld "Uses old chain index" #-}
 -- | The same as 'runGuardedStep' but we can supply additional constraints and lookups for transaction.
-runGuardedStepWith ::
+runGuardedStepWithOld ::
     forall w a e state schema input.
     ( AsSMContractError e
     , PlutusTx.FromData state
@@ -430,7 +440,7 @@ runGuardedStepWith ::
     -> input                                       -- ^ The input to apply to the state machine
     -> (UnbalancedTx -> state -> state -> Maybe a) -- ^ The guard to check before running the step
     -> Contract w schema e (Either a (TransitionResult state input))
-runGuardedStepWith userLookups userConstraints smc input guard = mapError (review _SMContractError) $ mkStep smc input >>= \case
+runGuardedStepWithOld userLookups userConstraints smc input guard = mapError (review _SMContractError) $ mkStepOld smc input >>= \case
      Right (StateMachineTransition{smtConstraints,smtOldState=State{stateData=os}, smtNewState=State{stateData=ns}, smtLookups}) -> do
          pk <- ownPubKey
          let lookups = smtLookups { Constraints.slOwnPubkey = Just $ pubKeyHash pk }
@@ -442,10 +452,11 @@ runGuardedStepWith userLookups userConstraints smc input guard = mapError (revie
              Just a  -> pure $ Left a
      Left e -> pure $ Right $ TransitionFailure e
 
+{-# DEPRECATED mkStepOld "Uses old chain index" #-}
 -- | Given a state machine client and an input to apply to
 --   the client's state machine instance, compute the 'StateMachineTransition'
 --   that can produce an actual transaction performing the transition
-mkStep ::
+mkStepOld ::
     forall w e state schema input.
     ( AsSMContractError e
     , PlutusTx.FromData state
@@ -454,10 +465,10 @@ mkStep ::
     => StateMachineClient state input
     -> input
     -> Contract w schema e (Either (InvalidTransition state input) (StateMachineTransition state input))
-mkStep client@StateMachineClient{scInstance} input = do
+mkStepOld client@StateMachineClient{scInstance} input = do
     let StateMachineInstance{stateMachine, typedValidator} = scInstance
         StateMachine{smTransition} = stateMachine
-    maybeState <- getOnChainState client
+    maybeState <- getOnChainStateOld client
     case maybeState of
         Nothing -> pure $ Left $ InvalidTransition Nothing input
         Just (onChainState, utxo) -> do

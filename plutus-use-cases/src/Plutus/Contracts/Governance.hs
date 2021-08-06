@@ -195,13 +195,13 @@ contract params = forever $ mapError (review _GovError) endpoints where
     endpoints = selectList [initLaw, addVote]
 
     addVote = endpoint @"add-vote" $ \(tokenName, vote) ->
-        void $ SM.runStep theClient (AddVote tokenName vote)
+        void $ SM.runStepOld theClient (AddVote tokenName vote)
 
     initLaw = endpoint @"new-law" $ \bsLaw -> do
         let mph = Scripts.forwardingMintingPolicyHash (typedValidator params)
-        void $ SM.runInitialise theClient (GovState bsLaw mph Nothing) mempty
+        void $ SM.runInitialiseOld theClient (GovState bsLaw mph Nothing) mempty
         let tokens = Haskell.zipWith (const (mkTokenName (baseTokenName params))) (initialHolders params) [1..]
-        void $ SM.runStep theClient $ MintTokens tokens
+        void $ SM.runStepOld theClient $ MintTokens tokens
 
 -- | The contract for proposing changes to a law.
 proposalContract ::
@@ -212,13 +212,13 @@ proposalContract ::
 proposalContract params proposal = mapError (review _GovError) propose where
     theClient = client params
     propose = do
-        void $ SM.runStep theClient (ProposeChange proposal)
+        void $ SM.runStepOld theClient (ProposeChange proposal)
 
         logInfo @Text "Voting started. Waiting for the voting deadline to count the votes."
         void $ awaitTime $ votingDeadline proposal
 
         logInfo @Text "Voting finished. Counting the votes."
-        void $ SM.runStep theClient FinishVoting
+        void $ SM.runStepOld theClient FinishVoting
 
 PlutusTx.makeLift ''Params
 PlutusTx.unstableMakeIsData ''Proposal

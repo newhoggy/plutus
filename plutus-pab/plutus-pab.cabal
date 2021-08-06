@@ -127,6 +127,7 @@ library
     build-depends:
         , freer-extras
         , playground-common
+        , plutus-chain-index
         , plutus-contract
         , plutus-ledger
         , plutus-tx

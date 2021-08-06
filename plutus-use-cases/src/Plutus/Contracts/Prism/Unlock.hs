@@ -36,7 +36,7 @@ import           Ledger.Crypto                       (PubKeyHash)
 import           Ledger.Value                        (TokenName)
 import           Plutus.Contract
 import           Plutus.Contract.StateMachine        (InvalidTransition, SMContractError, StateMachine,
-                                                      StateMachineTransition (..), mkStep)
+                                                      StateMachineTransition (..), mkStepOld)
 import           Plutus.Contracts.Prism.Credential   (Credential)
 import qualified Plutus.Contracts.Prism.Credential   as Credential
 import           Plutus.Contracts.Prism.STO          (STOData (..))
@@ -122,7 +122,7 @@ obtainCredentialTokenData credential = do
     -- Calls the 'PresentCredential' step on the state machine instance and returns the constraints
     -- needed to construct a transaction that presents the token.
     let theClient = StateMachine.machineClient (StateMachine.typedValidator userCredential) userCredential
-    t <- mapError GetCredentialStateMachineError $ mkStep theClient PresentCredential
+    t <- mapError GetCredentialStateMachineError $ mkStepOld theClient PresentCredential
     case t of
         Left e -> throwError $ GetCredentialTransitionError e
         Right StateMachineTransition{smtConstraints=cons, smtLookups=lookups} ->

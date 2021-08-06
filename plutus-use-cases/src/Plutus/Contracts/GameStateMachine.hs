@@ -207,15 +207,15 @@ guess = endpoint @"guess" $ \GuessArgs{guessArgsOldSecret,guessArgsNewSecret, gu
         newSecret     = HashedString (sha2_256 (C.pack guessArgsNewSecret))
 
     void
-        $ SM.runStep client
+        $ SM.runStepOld client
             (Guess guessedSecret newSecret guessArgsValueTakenOut)
 
 lock :: Promise () GameStateMachineSchema GameError ()
 lock = endpoint @"lock" $ \LockArgs{lockArgsSecret, lockArgsValue} -> do
     let secret = HashedString (sha2_256 (C.pack lockArgsSecret))
         sym = Scripts.forwardingMintingPolicyHash typedValidator
-    _ <- SM.runInitialise client (Initialised sym "guess" secret) lockArgsValue
-    void $ SM.runStep client MintToken
+    _ <- SM.runInitialiseOld client (Initialised sym "guess" secret) lockArgsValue
+    void $ SM.runStepOld client MintToken
 
 PlutusTx.unstableMakeIsData ''GameState
 PlutusTx.makeLift ''GameState

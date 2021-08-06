@@ -402,16 +402,16 @@ instance AsSMContractError StablecoinError where
 contract :: Promise () StablecoinSchema StablecoinError ()
 contract = endpoint @"initialise" $ \sc -> do
     let theClient = machineClient (typedValidator sc) sc
-    _ <- StateMachine.runInitialise theClient (initialState theClient) mempty
+    _ <- StateMachine.runInitialiseOld theClient (initialState theClient) mempty
     forever $ awaitPromise $ endpoint @"run step" $ \i -> do
         checkTransition theClient sc i
-        StateMachine.runStep theClient i
+        StateMachine.runStepOld theClient i
 
 -- | Apply 'checkValidState' to the states before and after a transition
 --   and log a warning if something isn't right.
 checkTransition :: StateMachineClient BankState Input -> Stablecoin -> Input -> Contract () StablecoinSchema StablecoinError ()
 checkTransition theClient sc i@Input{inpConversionRate} = do
-        currentState <- mapError StateMachineError $ StateMachine.getOnChainState theClient
+        currentState <- mapError StateMachineError $ StateMachine.getOnChainStateOld theClient
         case checkHashOffChain inpConversionRate of
             Right Observation{obsValue} -> do
                 case currentState of

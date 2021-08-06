@@ -68,31 +68,58 @@ stateMachineClient threadToken =
    in SM.mkStateMachineClient (SM.StateMachineInstance machine inst)
 -- * Minimal test runner for repro
 
-contract :: Contract () EmptySchema String ()
-contract = do
+{-# DEPRECATED contractOld "Uses old chain index" #-}
+contractOld :: Contract () EmptySchema String ()
+contractOld = do
   threadToken <- mapSMError SM.getThreadToken
   logError @String $ "Forged thread token: " <> show threadToken
 
   let client = stateMachineClient threadToken
-  void $ mapSMError $ SM.runInitialise client First mempty
+  void $ mapSMError $ SM.runInitialiseOld client First mempty
   logError @String $ "Initialized state machine"
 
-  res <- mapSMError $ SM.runStep client Step
+  res <- mapSMError $ SM.runStepOld client Step
   case res of
     SM.TransitionFailure (SM.InvalidTransition os i) -> logError @String $ "Invalid transition: " <> show (os, i)
     SM.TransitionSuccess s                           -> logError @String $ "Transition success: " <> show s
  where
   mapSMError = mapError (show @SM.SMContractError)
 
-testTrace :: EmulatorTrace ()
-testTrace = do
-  void $ activateContractWallet (Wallet 1) contract
+contractV2 :: Contract () EmptySchema String ()
+contractV2 = do
+  threadToken <- mapSMError SM.getThreadToken
+  logError @String $ "Forged thread token: " <> show threadToken
+
+  let client = stateMachineClient threadToken
+  void $ mapSMError $ SM.runInitialiseOld client First mempty
+  logError @String $ "Initialized state machine"
+
+  res <- mapSMError $ SM.runStepOld client Step
+  case res of
+    SM.TransitionFailure (SM.InvalidTransition os i) -> logError @String $ "Invalid transition: " <> show (os, i)
+    SM.TransitionSuccess s                           -> logError @String $ "Transition success: " <> show s
+ where
+  mapSMError = mapError (show @SM.SMContractError)
+
+{-# DEPRECATED testTraceOld "Uses old chain index" #-}
+testTraceOld :: EmulatorTrace ()
+testTraceOld = do
+  void $ activateContractWallet (Wallet 1) contractOld
+  void $ Trace.waitNSlots 10
+
+testTraceV2 :: EmulatorTrace ()
+testTraceV2 = do
+  void $ activateContractWallet (Wallet 1) contractV2
   void $ Trace.waitNSlots 10
 
 tests :: TestTree
 tests = testGroup "Thread Token"
-    [ checkPredicate "Runs successfully"
-        (assertDone contract (Trace.walletInstanceTag (Wallet 1)) (const True) "No errors"
+    [ checkPredicateOld "Runs successfully"
+        (assertDone contractOld (Trace.walletInstanceTag (Wallet 1)) (const True) "No errors"
          .&&. assertNoFailedTransactions)
-        testTrace
+        testTraceOld
+    , checkPredicateV2 "Runs successfully"
+        (assertDone contractV2 (Trace.walletInstanceTag (Wallet 1)) (const True) "No errors"
+         .&&. assertNoFailedTransactions)
+        testTraceV2
     ]

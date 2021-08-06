@@ -23,11 +23,11 @@ currencyTrace = do
 
 tests :: TestTree
 tests = testGroup "currency"
-    [ checkPredicate
+    [ checkPredicateOld
         "can create a new currency"
         (assertDone theContract (Trace.walletInstanceTag w1) (const True) "currency contract not done")
         currencyTrace
-    , checkPredicate
+    , checkPredicateOld
         "script size is reasonable"
         (assertDone theContract (Trace.walletInstanceTag w1) ((30000 >=) . Ledger.scriptSize . Ledger.unMintingPolicyScript . Cur.curPolicy) "script too large")
         currencyTrace

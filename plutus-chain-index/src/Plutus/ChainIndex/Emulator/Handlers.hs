@@ -1,10 +1,13 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs            #-}
-{-# LANGUAGE LambdaCase       #-}
-{-# LANGUAGE NamedFieldPuns   #-}
-{-# LANGUAGE TemplateHaskell  #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DerivingVia       #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE GADTs             #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TypeOperators     #-}
 {-| Handlers for the 'ChainIndexQueryEffect' and the 'ChainIndexControlEffect'
     in the emulator
 -}
@@ -23,10 +26,13 @@ import           Control.Monad.Freer                  (Eff, Member, type (~>))
 import           Control.Monad.Freer.Error            (Error, throwError)
 import           Control.Monad.Freer.Extras.Log       (LogMsg, logDebug, logError, logWarn)
 import           Control.Monad.Freer.State            (State, get, gets, modify, put)
+import           Data.Aeson                           (FromJSON, ToJSON)
 import           Data.Default                         (Default (..))
 import           Data.FingerTree                      (Measured (..))
 import           Data.Maybe                           (catMaybes, fromMaybe)
+import           Data.Semigroup.Generic               (GenericSemigroupMonoid (..))
 import qualified Data.Set                             as Set
+import           GHC.Generics                         (Generic)
 import           Ledger                               (TxId, TxOutRef (..))
 import           Plutus.ChainIndex.Effects            (ChainIndexControlEffect (..), ChainIndexQueryEffect (..))
 import           Plutus.ChainIndex.Emulator.DiskState (DiskState, addressMap, dataMap, mintingPolicyMap, txMap,
@@ -37,12 +43,15 @@ import           Plutus.ChainIndex.Types              (Tip (..), pageOf)
 import           Plutus.ChainIndex.UtxoState          (InsertUtxoPosition, InsertUtxoSuccess (..), RollbackResult (..),
                                                        UtxoIndex, isUnspentOutput, tip)
 import qualified Plutus.ChainIndex.UtxoState          as UtxoState
+import           Prettyprinter                        (Pretty (..), colon, (<+>))
 
 data ChainIndexEmulatorState =
     ChainIndexEmulatorState
         { _diskState :: DiskState
         , _utxoIndex :: UtxoIndex
         }
+        deriving stock (Eq, Show, Generic)
+        deriving (Semigroup, Monoid) via (GenericSemigroupMonoid ChainIndexEmulatorState)
 
 makeLenses ''ChainIndexEmulatorState
 
@@ -144,6 +153,14 @@ data ChainIndexError =
     InsertionFailed UtxoState.InsertUtxoFailed
     | RollbackFailed UtxoState.RollbackFailed
     | QueryFailedNoTip -- ^ Query failed because the chain index does not have a tip (not synchronised with node)
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
+instance Pretty ChainIndexError where
+  pretty = \case
+    InsertionFailed err -> "Insertion failed" <> colon <+> pretty err
+    RollbackFailed err  -> "Rollback failed" <> colon <+> pretty err
+    QueryFailedNoTip    -> "Query failed" <> colon <+> "No tip."
 
 data ChainIndexLog =
     InsertionSuccess Tip InsertUtxoPosition
@@ -151,3 +168,19 @@ data ChainIndexLog =
     | Err ChainIndexError
     | TxNotFound TxId
     | TipIsGenesis
+    deriving stock (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
+
+instance Pretty ChainIndexLog where
+  pretty = \case
+    InsertionSuccess t p ->
+         "InsertionSuccess"
+      <> colon
+      <+> "New tip is"
+      <+> pretty t
+      <> "."
+      <+> pretty p
+    RollbackSuccess t -> "RollbackSuccess: New tip is" <+> pretty t
+    Err ciError -> "ChainIndexError:" <+> pretty ciError
+    TxNotFound txid -> "TxNotFound:" <+> pretty txid
+    TipIsGenesis -> "TipIsGenesis"

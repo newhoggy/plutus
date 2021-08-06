@@ -51,7 +51,8 @@ module Wallet.Emulator.Types(
     index,
     chainState,
     currentSlot,
-    processEmulated,
+    processEmulatedOld,
+    processEmulatedV2,
     fundsDistribution,
     emLog,
     selectCoin
@@ -65,11 +66,12 @@ import           Control.Monad.Freer.Extras.Log (LogMsg, mapLog)
 import           Control.Monad.Freer.State      (State)
 
 import           Ledger
+import           Plutus.ChainIndex              (ChainIndexError)
 import           Wallet.API                     (WalletAPIError (..))
 
 import           Ledger.Fee                     (FeeConfig)
 import           Ledger.TimeSlot                (SlotConfig)
-import           Wallet.Emulator.Chain          as Chain
+import           Wallet.Emulator.Chain
 import           Wallet.Emulator.MultiAgent
 import           Wallet.Emulator.NodeClient
 import           Wallet.Emulator.Wallet
@@ -77,8 +79,10 @@ import           Wallet.Types                   (AsAssertionError (..), Assertio
 
 type EmulatorEffs = '[MultiAgentEffect, ChainEffect, ChainControlEffect]
 
-processEmulated :: forall effs.
+{-# DEPRECATED processEmulatedOld "Uses old chain index" #-}
+processEmulatedOld :: forall effs.
     ( Member (Error WalletAPIError) effs
+    , Member (Error ChainIndexError) effs
     , Member (Error AssertionError) effs
     , Member (State EmulatorState) effs
     , Member (LogMsg EmulatorEvent') effs
@@ -87,9 +91,31 @@ processEmulated :: forall effs.
     -> FeeConfig
     -> Eff (MultiAgentEffect ': MultiAgentControlEffect ': ChainEffect ': ChainControlEffect ': effs)
     ~> Eff effs
-processEmulated slotCfg feeCfg act =
+processEmulatedOld slotCfg feeCfg act =
     act
-        & handleMultiAgent feeCfg
+        & handleMultiAgentOld feeCfg
+        & handleMultiAgentControl
+        & reinterpret2 @ChainEffect @(State ChainState) @(LogMsg ChainEvent) (handleChain slotCfg)
+        & interpret (Eff.handleZoomedState chainState)
+        & interpret (mapLog (review chainEvent))
+        & reinterpret2 @ChainControlEffect @(State ChainState) @(LogMsg ChainEvent) handleControlChain
+        & interpret (Eff.handleZoomedState chainState)
+        & interpret (mapLog (review chainEvent))
+
+processEmulatedV2 :: forall effs.
+    ( Member (Error WalletAPIError) effs
+    , Member (Error ChainIndexError) effs
+    , Member (Error AssertionError) effs
+    , Member (State EmulatorState) effs
+    , Member (LogMsg EmulatorEvent') effs
+    )
+    => SlotConfig
+    -> FeeConfig
+    -> Eff (MultiAgentEffect ': MultiAgentControlEffect ': ChainEffect ': ChainControlEffect ': effs)
+    ~> Eff effs
+processEmulatedV2 slotCfg feeCfg act =
+    act
+        & handleMultiAgentV2 feeCfg
         & handleMultiAgentControl
         & reinterpret2 @ChainEffect @(State ChainState) @(LogMsg ChainEvent) (handleChain slotCfg)
         & interpret (Eff.handleZoomedState chainState)

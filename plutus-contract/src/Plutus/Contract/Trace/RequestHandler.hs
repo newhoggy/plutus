@@ -23,9 +23,11 @@ module Plutus.Contract.Trace.RequestHandler(
     , handleTimeNotifications
     , handleCurrentTime
     , handleUnbalancedTransactions
-    , handlePendingTransactions
-    , handleUtxoQueries
-    , handleAddressChangedAtQueries
+    , handlePendingTransactionsOld
+    , handlePendingTransactionsV2
+    , handleUtxoQueriesOld
+    , handleChainIndexQueries
+    , handleAddressChangedAtQueriesOld
     , handleOwnInstanceIdQueries
     ) where
 
@@ -53,7 +55,9 @@ import           Ledger                         (Address, OnChainTx (Valid), POS
 import           Ledger.AddressMap              (AddressMap (..))
 import           Ledger.Constraints.OffChain    (UnbalancedTx)
 import qualified Ledger.TimeSlot                as TimeSlot
-import           Plutus.Contract.Effects        (UtxoAtAddress (..))
+import           Plutus.ChainIndex              (ChainIndexQueryEffect)
+import qualified Plutus.ChainIndex.Effects      as ChainIndexEff
+import           Plutus.Contract.Effects        (ChainIndexQuery (..), ChainIndexResponse (..), UtxoAtAddress (..))
 import qualified Plutus.Contract.Wallet         as Wallet
 import           Wallet.API                     (WalletAPIError)
 import           Wallet.Effects                 (ChainIndexEffect, NodeClientEffect, WalletEffect)
@@ -188,7 +192,8 @@ handleUnbalancedTransactions =
         surroundDebug @Text "handleUnbalancedTransactions" $ do
         Wallet.balanceTx unbalancedTx `Eff.handleError` (\err -> logWarn (HandleTxFailed err) >> pure (Left err))
 
-handlePendingTransactions ::
+{-# DEPRECATED handlePendingTransactionsOld "Uses old chain index" #-}
+handlePendingTransactionsOld ::
     forall effs.
     ( Member WalletEffect effs
     , Member (LogObserve (LogMessage Text)) effs
@@ -196,7 +201,7 @@ handlePendingTransactions ::
     , Member ChainIndexEffect effs
     )
     => RequestHandler effs Tx (Either WalletAPIError Tx)
-handlePendingTransactions =
+handlePendingTransactionsOld =
     RequestHandler $ \tx ->
         surroundDebug @Text "handlePendingTransactions" $ do
         logDebug StartWatchingContractAddresses
@@ -204,14 +209,28 @@ handlePendingTransactions =
         traverse_ Wallet.Effects.startWatching (AM.addressesTouched wa (Valid tx))
         (Right <$> Wallet.signTxAndSubmit tx) `Eff.handleError` (\err -> logWarn (HandleTxFailed err) >> pure (Left err))
 
-handleUtxoQueries ::
+handlePendingTransactionsV2 ::
+    forall effs.
+    ( Member WalletEffect effs
+    , Member (LogObserve (LogMessage Text)) effs
+    , Member (LogMsg RequestHandlerLogMsg) effs
+    )
+    => RequestHandler effs Tx (Either WalletAPIError Tx)
+handlePendingTransactionsV2 =
+    RequestHandler $ \tx ->
+        surroundDebug @Text "handlePendingTransactions" $ do
+        Eff.handleError (Right <$> Wallet.signTxAndSubmit tx)
+                        (\err -> logWarn (HandleTxFailed err) >> pure (Left err))
+
+{-# DEPRECATED handleUtxoQueriesOld "Uses old chain index" #-}
+handleUtxoQueriesOld ::
     forall effs.
     ( Member (LogObserve (LogMessage Text)) effs
     , Member (LogMsg RequestHandlerLogMsg) effs
     , Member ChainIndexEffect effs
     )
     => RequestHandler effs Address UtxoAtAddress
-handleUtxoQueries = RequestHandler $ \addr ->
+handleUtxoQueriesOld = RequestHandler $ \addr ->
     surroundDebug @Text "handleUtxoQueries" $ do
         Wallet.Effects.startWatching addr
         AddressMap utxoSet <- Wallet.Effects.watchedAddresses
@@ -221,7 +240,26 @@ handleUtxoQueries = RequestHandler $ \addr ->
                 empty
             Just s  -> pure (UtxoAtAddress addr s)
 
-handleAddressChangedAtQueries ::
+handleChainIndexQueries ::
+    forall effs.
+    ( Member (LogObserve (LogMessage Text)) effs
+    , Member ChainIndexQueryEffect effs
+    )
+    => RequestHandler effs ChainIndexQuery ChainIndexResponse
+handleChainIndexQueries = RequestHandler $ \chainIndexQuery ->
+    surroundDebug @Text "handleUtxoQueries" $ do
+      case chainIndexQuery of
+        DatumFromHash h            -> DatumHashResponse <$> ChainIndexEff.datumFromHash h
+        ValidatorFromHash h        -> ValidatorHashResponse <$> ChainIndexEff.validatorFromHash h
+        MintingPolicyFromHash h    -> MintingPolicyHashResponse <$> ChainIndexEff.mintingPolicyFromHash h
+        TxOutFromRef txOutRef      -> TxOutRefResponse <$> ChainIndexEff.txOutFromRef txOutRef
+        TxFromTxId txid            -> TxIdResponse <$> ChainIndexEff.txFromTxId txid
+        UtxoSetMembership txOutRef -> UtxoSetMembershipResponse <$> ChainIndexEff.utxoSetMembership txOutRef
+        UtxoSetAtAddress c         -> UtxoSetAtResponse <$> ChainIndexEff.utxoSetAtAddress c
+        GetTip                     -> GetTipResponse <$> ChainIndexEff.getTip
+
+{-# DEPRECATED handleAddressChangedAtQueriesOld "Uses old chain index" #-}
+handleAddressChangedAtQueriesOld ::
     forall effs.
     ( Member (LogObserve (LogMessage Text)) effs
     , Member (LogMsg RequestHandlerLogMsg) effs
@@ -229,7 +267,7 @@ handleAddressChangedAtQueries ::
     , Member NodeClientEffect effs
     )
     => RequestHandler effs AddressChangeRequest AddressChangeResponse
-handleAddressChangedAtQueries = RequestHandler $ \req ->
+handleAddressChangedAtQueriesOld = RequestHandler $ \req ->
     surroundDebug @Text "handleAddressChangedAtQueries" $ do
         current <- Wallet.Effects.getClientSlot
         let target = targetSlot req

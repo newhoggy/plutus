@@ -198,6 +198,7 @@ type SimulatorContractHandler t =
 
 type SimulatorEffectHandlers t = EffectHandlers t (SimulatorState t)
 
+{-# DEPRECATED mkSimulatorHandlers "Uses the old chain index" #-}
 -- | Build 'EffectHandlers' for running a contract in the simulator
 mkSimulatorHandlers ::
     forall t.
@@ -252,6 +253,7 @@ handleLogSimulator ::
 handleLogSimulator =
     interpret (logIntoTQueue @_ @(Core.PABEnvironment t (SimulatorState t)) @effs (view logMessages . Core.appEnv))
 
+{-# DEPRECATED handleServicesSimulator "Uses the old chain index" #-}
 handleServicesSimulator ::
     forall t effs.
     ( Member (LogMsg (PABMultiAgentMsg t)) effs
@@ -292,7 +294,7 @@ handleServicesSimulator feeCfg slotCfg wallet =
         . flip (handleError @WAPI.WalletAPIError) (throwError @PABError . WalletError)
         . interpret (Core.handleUserEnvReader @t @(SimulatorState t))
         . reinterpret (runWalletState @t wallet)
-        . reinterpretN @'[State Wallet.WalletState, Error WAPI.WalletAPIError, LogMsg TxBalanceMsg] (Wallet.handleWallet feeCfg)
+        . reinterpretN @'[State Wallet.WalletState, Error WAPI.WalletAPIError, LogMsg TxBalanceMsg] (Wallet.handleWalletOld feeCfg)
 
 -- | Handle the 'State WalletState' effect by reading from and writing
 --   to a TVar in the 'SimulatorState'

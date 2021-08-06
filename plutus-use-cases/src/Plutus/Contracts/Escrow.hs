@@ -281,7 +281,7 @@ redeem ::
 redeem inst escrow = mapError (review _EscrowError) $ do
     let addr = Scripts.validatorAddress inst
     current <- currentTime
-    unspentOutputs <- utxoAt addr
+    unspentOutputs <- utxoAtOld addr
     let
         valRange = Interval.to (Haskell.pred $ escrowDeadline escrow)
         tx = Typed.collectFromScript unspentOutputs Redeem
@@ -314,7 +314,7 @@ refund ::
     -> Contract w s EscrowError RefundSuccess
 refund inst escrow = do
     pk <- ownPubKey
-    unspentOutputs <- utxoAt (Scripts.validatorAddress inst)
+    unspentOutputs <- utxoAtOld (Scripts.validatorAddress inst)
     let flt _ (TxOutTx _ txOut) = Ledger.txOutDatum txOut == Just (Ledger.datumHash $ Datum (PlutusTx.toBuiltinData $ Ledger.pubKeyHash pk))
         tx' = Typed.collectFromScriptFilter flt unspentOutputs Refund
                 <> Constraints.mustValidateIn (from (Haskell.succ $ escrowDeadline escrow))
@@ -333,7 +333,7 @@ payRedeemRefund ::
 payRedeemRefund params vl = do
     let inst = typedValidator params
         go = do
-            cur <- utxoAt (Scripts.validatorAddress inst)
+            cur <- utxoAtOld (Scripts.validatorAddress inst)
             let presentVal = foldMap (Tx.txOutValue . Tx.txOutTxOut) cur
             if presentVal `geq` targetTotal params
                 then Right <$> redeem inst params

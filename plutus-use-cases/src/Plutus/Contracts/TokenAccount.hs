@@ -172,7 +172,7 @@ redeemTx :: forall w s e.
     -> Contract w s e (TxConstraints () (), ScriptLookups TokenAccount)
 redeemTx account pk = mapError (review _TAContractError) $ do
     let inst = typedValidator account
-    utxos <- utxoAt (address account)
+    utxos <- utxoAtOld (address account)
     let totalVal = foldMap (V.txOutValue . txOutTxOut) utxos
         numInputs = Map.size utxos
     logInfo @String
@@ -211,7 +211,7 @@ balance
     => Account
     -> Contract w s e Value
 balance account = mapError (review _TAContractError) $ do
-    utxos <- utxoAt (address account)
+    utxos <- utxoAtOld (address account)
     let inner =
             foldMap (view Ledger.outValue . Ledger.txOutTxOut)
             $ utxos

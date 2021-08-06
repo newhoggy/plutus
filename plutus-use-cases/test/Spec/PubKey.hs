@@ -36,7 +36,7 @@ theContract = do
 
 tests :: TestTree
 tests = testGroup "pubkey"
-  [ checkPredicate "works like a public key output"
+  [ checkPredicateOld "works like a public key output"
       (walletFundsChange w1 mempty .&&. assertDone theContract (Trace.walletInstanceTag w1) (const True) "pubkey contract not done")
       pubKeyTrace
   ]

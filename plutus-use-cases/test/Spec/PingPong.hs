@@ -37,11 +37,11 @@ w2 = Wallet 2
 
 tests :: TestTree
 tests = testGroup "pingpong"
-    [ checkPredicate "activate endpoints"
+    [ checkPredicateOld "activate endpoints"
         (endpointAvailable @"pong" theContract (Trace.walletInstanceTag w1))
         pingPongTrace
 
-    , checkPredicate "Stop the contract"
+    , checkPredicateOld "Stop the contract"
         (assertDone twoParties (Trace.walletInstanceTag w1) isNothing "W1"
         .&&. assertDone twoParties (Trace.walletInstanceTag w2) isNothing "W2"
         )

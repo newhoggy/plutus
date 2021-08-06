@@ -155,7 +155,7 @@ threadToken =
         $ Freer.runError @Folds.EmulatorFoldErr
         $ Stream.foldEmulatorStreamM fld
         $ Stream.takeUntilSlot 10
-        $ Trace.runEmulatorStream (options ^. emulatorConfig)
+        $ Trace.runEmulatorStreamOld (options ^. emulatorConfig)
         $ do
             void $ Trace.activateContractWallet w1 (void con)
             Trace.waitNSlots 3
@@ -255,7 +255,7 @@ delay n = void $ Trace.waitNSlots $ fromIntegral n
 
 prop_Auction :: Actions AuctionModel -> Property
 prop_Auction script =
-    propRunActionsWithOptions (set minLogLevel Info options) spec
+    propRunActionsWithOptionsOld (set minLogLevel Info options) spec
         (\ _ -> pure True)  -- TODO: check termination
         script
     where
@@ -276,14 +276,14 @@ prop_FinishAuction = forAllDL finishAuction prop_Auction
 tests :: TestTree
 tests =
     testGroup "auction"
-        [ checkPredicateOptions options "run an auction"
+        [ checkPredicateOptionsOld options "run an auction"
             (assertDone seller (Trace.walletInstanceTag w1) (const True) "seller should be done"
             .&&. assertDone (buyer threadToken) (Trace.walletInstanceTag w2) (const True) "buyer should be done"
             .&&. assertAccumState (buyer threadToken) (Trace.walletInstanceTag w2) ((==) trace1FinalState ) "final state should be OK"
             .&&. walletFundsChange w1 (Ada.toValue trace1WinningBid <> inv theToken)
             .&&. walletFundsChange w2 (inv (Ada.toValue trace1WinningBid) <> theToken))
             auctionTrace1
-        , checkPredicateOptions options "run an auction with multiple bids"
+        , checkPredicateOptionsOld options "run an auction with multiple bids"
             (assertDone seller (Trace.walletInstanceTag w1) (const True) "seller should be done"
             .&&. assertDone (buyer threadToken) (Trace.walletInstanceTag w2) (const True) "buyer should be done"
             .&&. assertDone (buyer threadToken) (Trace.walletInstanceTag w3) (const True) "3rd party should be done"

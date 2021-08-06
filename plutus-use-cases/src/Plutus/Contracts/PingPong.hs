@@ -116,7 +116,7 @@ client :: SM.StateMachineClient PingPongState Input
 client = SM.mkStateMachineClient machineInstance
 
 initialise :: forall w. Promise w PingPongSchema PingPongError ()
-initialise = endpoint @"initialise" $ \() -> void $ SM.runInitialise client Pinged (Ada.lovelaceValueOf 1)
+initialise = endpoint @"initialise" $ \() -> void $ SM.runInitialiseOld client Pinged (Ada.lovelaceValueOf 1)
 
 run ::
     forall w.
@@ -129,7 +129,7 @@ run expectedState action = do
         go (Just currentState)
             | extractState currentState == expectedState = awaitPromise action
             | otherwise = runWaitForUpdate >>= go
-    maybeState <- SM.getOnChainState client
+    maybeState <- SM.getOnChainStateOld client
     let datum = fmap fst maybeState
     go datum
 
@@ -137,19 +137,19 @@ runPing :: forall w. Contract w PingPongSchema PingPongError ()
 runPing = run Ponged ping
 
 ping :: forall w. Promise w PingPongSchema PingPongError ()
-ping = endpoint @"ping" $ \() -> void (SM.runStep client Ping)
+ping = endpoint @"ping" $ \() -> void (SM.runStepOld client Ping)
 
 runPong :: forall w. Contract w PingPongSchema PingPongError ()
 runPong = run Pinged pong
 
 pong :: forall w. Promise w PingPongSchema PingPongError ()
-pong = endpoint @"pong" $ \() -> void (SM.runStep client Pong)
+pong = endpoint @"pong" $ \() -> void (SM.runStepOld client Pong)
 
 runStop :: forall w. Promise w PingPongSchema PingPongError ()
-runStop = endpoint @"stop" $ \() -> void (SM.runStep client Stop)
+runStop = endpoint @"stop" $ \() -> void (SM.runStepOld client Stop)
 
 runWaitForUpdate :: forall w. Contract w PingPongSchema PingPongError (Maybe (OnChainState PingPongState Input))
-runWaitForUpdate = SM.waitForUpdate client
+runWaitForUpdate = SM.waitForUpdateOld client
 
 combined :: Contract (Last PingPongState) PingPongSchema PingPongError ()
 combined = forever (selectList [initialise, ping, pong, runStop, wait]) where

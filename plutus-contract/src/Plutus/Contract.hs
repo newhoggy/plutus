@@ -41,15 +41,15 @@ module Plutus.Contract(
     -- * Blockchain events
     , Wallet.Types.AddressChangeRequest(..)
     , Wallet.Types.AddressChangeResponse(..)
-    , Request.addressChangeRequest
-    , Request.nextTransactionsAt
-    , Request.watchAddressUntilSlot
-    , Request.watchAddressUntilTime
-    , Request.fundsAtAddressGt
-    , Request.fundsAtAddressGeq
+    , Request.addressChangeRequestOld
+    , Request.nextTransactionsAtOld
+    , Request.watchAddressUntilSlotOld
+    , Request.watchAddressUntilTimeOld
+    , Request.fundsAtAddressGtOld
+    , Request.fundsAtAddressGeqOld
     -- * UTXO set
     , UtxoMap
-    , Request.utxoAt
+    , Request.utxoAtOld
     -- * Wallet's own public key
     , Request.ownPubKey
     -- * Contract instance Id

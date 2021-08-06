@@ -50,7 +50,7 @@ theContract startTime = crowdfunding $ theCampaign startTime
 
 tests :: TestTree
 tests = testGroup "crowdfunding"
-    [ checkPredicate "Expose 'contribute' and 'scheduleCollection' endpoints"
+    [ checkPredicateOld "Expose 'contribute' and 'scheduleCollection' endpoints"
         (endpointAvailable @"contribute" (theContract startTime) (Trace.walletInstanceTag w1)
         .&&. endpointAvailable @"schedule collection" (theContract startTime) (Trace.walletInstanceTag w1)
         )
@@ -58,16 +58,16 @@ tests = testGroup "crowdfunding"
             slotCfg <- Trace.getSlotConfig
             void (Trace.activateContractWallet w1 $ theContract $ TimeSlot.scSlotZeroTime slotCfg)
 
-    , checkPredicateOptions (defaultCheckOptions & maxSlot .~ 20) "make contribution"
+    , checkPredicateOptionsOld (defaultCheckOptions & maxSlot .~ 20) "make contribution"
         (walletFundsChange w1 (Ada.lovelaceValueOf (-100)))
         $ let contribution = Ada.lovelaceValueOf 100
           in makeContribution w1 contribution >> void Trace.nextSlot
 
-    , checkPredicate "make contributions and collect"
+    , checkPredicateOld "make contributions and collect"
         (walletFundsChange w1 (Ada.lovelaceValueOf 225))
         successfulCampaign
 
-    , checkPredicate "cannot collect money too late"
+    , checkPredicateOld "cannot collect money too late"
         (walletFundsChange w1 PlutusTx.zero
         .&&. assertNoFailedTransactions)
         $ do
@@ -83,7 +83,7 @@ tests = testGroup "crowdfunding"
             -- now.
             Trace.thawContractInstance chInstanceId
 
-    , checkPredicate "cannot collect unless notified"
+    , checkPredicateOld "cannot collect unless notified"
         (walletFundsChange w1 PlutusTx.zero)
         $ do
             ContractHandle{chInstanceId} <- startCampaign
@@ -96,7 +96,7 @@ tests = testGroup "crowdfunding"
             -- time has come, so it does not submit the transaction.
             void $ Trace.waitUntilSlot 35
 
-    , checkPredicate "can claim a refund"
+    , checkPredicateOld "can claim a refund"
         (walletFundsChange w1 mempty
         .&&. walletFundsChange w2 mempty
         .&&. walletFundsChange w3 mempty)
@@ -141,7 +141,7 @@ renderWalletLog trace =
             run
             $ foldEmulatorStreamM (L.generalize $ Folds.instanceLog (Trace.walletInstanceTag w1))
             $ filterLogLevel Info
-            $ Trace.runEmulatorStream def trace
+            $ Trace.runEmulatorStreamOld def trace
     in BSL.fromStrict $ T.encodeUtf8 $ renderStrict $ layoutPretty defaultLayoutOptions $ vsep $ fmap pretty $ S.fst' result
 
 renderEmulatorLog :: EmulatorTrace () -> ByteString
@@ -150,5 +150,5 @@ renderEmulatorLog trace =
             run
             $ foldEmulatorStreamM (L.generalize Folds.emulatorLog)
             $ filterLogLevel Info
-            $ Trace.runEmulatorStream def trace
+            $ Trace.runEmulatorStreamOld def trace
     in BSL.fromStrict $ T.encodeUtf8 $ renderStrict $ layoutPretty defaultLayoutOptions $ vsep $ fmap pretty $ S.fst' result

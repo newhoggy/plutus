@@ -144,10 +144,10 @@ handleSpec = [ ContractInstanceSpec (WalletKey w) w G.contract | w <- wallets ]
 
 -- | The main property. 'propRunActions_' checks that balances match the model after each test.
 prop_Game :: Actions GameModel -> Property
-prop_Game script = propRunActions_ handleSpec script
+prop_Game script = propRunActionsOld_ handleSpec script
 
 propGame' :: LogLevel -> Actions GameModel -> Property
-propGame' l s = propRunActionsWithOptions
+propGame' l s = propRunActionsWithOptionsOld
                     (set minLogLevel l defaultCheckOptions)
                     handleSpec
                     (\ _ -> pure True)
@@ -216,20 +216,20 @@ prop_NoLockedFunds = forAllDL noLockedFunds prop_Game
 tests :: TestTree
 tests =
     testGroup "game state machine tests"
-    [ checkPredicate "run a successful game trace"
+    [ checkPredicateOld "run a successful game trace"
         (walletFundsChange w2 (Ada.lovelaceValueOf 3 <> gameTokenVal)
         .&&. valueAtAddress (Scripts.validatorAddress G.typedValidator) (Ada.lovelaceValueOf 5 ==)
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-8)))
         successTrace
 
-    , checkPredicate "run a 2nd successful game trace"
+    , checkPredicateOld "run a 2nd successful game trace"
         (walletFundsChange w2 (Ada.lovelaceValueOf 3)
         .&&. valueAtAddress (Scripts.validatorAddress G.typedValidator) (Ada.lovelaceValueOf 1 ==)
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-8))
         .&&. walletFundsChange w3 (Ada.lovelaceValueOf 4 <> gameTokenVal))
         successTrace2
 
-    , checkPredicate "run a failed trace"
+    , checkPredicateOld "run a failed trace"
         (walletFundsChange w2 gameTokenVal
         .&&. valueAtAddress (Scripts.validatorAddress G.typedValidator) (Ada.lovelaceValueOf 8 ==)
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-8)))

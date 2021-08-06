@@ -53,11 +53,16 @@ module Plutus.Contract.Test(
     , reasonable
     , reasonable'
     -- * Checking predicates
-    , checkPredicate
-    , checkPredicateOptions
-    , checkPredicateGen
-    , checkPredicateGenOptions
-    , checkPredicateInner
+    , checkPredicateOld
+    , checkPredicateV2
+    , checkPredicateOptionsOld
+    , checkPredicateOptionsV2
+    , checkPredicateGenOld
+    , checkPredicateGenV2
+    , checkPredicateGenOptionsOld
+    , checkPredicateGenOptionsV2
+    , checkPredicateInnerOld
+    , checkPredicateInnerV2
     , CheckOptions
     , defaultCheckOptions
     , minLogLevel
@@ -117,14 +122,15 @@ import qualified Ledger.Generators                     as Gen
 import           Ledger.Index                          (ScriptValidationEvent, ValidationError)
 import           Ledger.Slot                           (Slot)
 import           Ledger.Value                          (Value)
-import           Wallet.Emulator                       (EmulatorEvent, EmulatorTimeEvent)
 
 import           Plutus.Contract.Trace                 as X
-import           Plutus.Trace.Emulator                 (EmulatorConfig (..), EmulatorTrace, runEmulatorStream)
+import           Plutus.Trace.Emulator                 (EmulatorConfig (..), EmulatorTrace, runEmulatorStreamOld,
+                                                        runEmulatorStreamV2)
 import           Plutus.Trace.Emulator.Types           (ContractConstraints, ContractInstanceLog,
                                                         ContractInstanceState (..), ContractInstanceTag, UserThreadMsg)
 import qualified Streaming                             as S
 import qualified Streaming.Prelude                     as S
+import           Wallet.Emulator                       (EmulatorEvent, EmulatorTimeEvent)
 import           Wallet.Emulator.Chain                 (ChainEvent)
 import           Wallet.Emulator.Folds                 (EmulatorFoldErr (..), Outcome (..), describeError, postMapM)
 import qualified Wallet.Emulator.Folds                 as Folds
@@ -161,26 +167,46 @@ defaultCheckOptions =
 
 type TestEffects = '[Reader InitialDistribution, Error EmulatorFoldErr, Writer (Doc Void)]
 
+{-# DEPRECATED checkPredicateOld "Uses old chain index" #-}
 -- | Check if the emulator trace meets the condition
-checkPredicate ::
+checkPredicateOld ::
     String -- ^ Descriptive name of the test
     -> TracePredicate -- ^ The predicate to check
     -> EmulatorTrace ()
     -> TestTree
-checkPredicate = checkPredicateOptions defaultCheckOptions
+checkPredicateOld = checkPredicateOptionsOld defaultCheckOptions
 
+-- | Check if the emulator trace meets the condition
+checkPredicateV2 ::
+    String -- ^ Descriptive name of the test
+    -> TracePredicate -- ^ The predicate to check
+    -> EmulatorTrace ()
+    -> TestTree
+checkPredicateV2 = checkPredicateOptionsV2 defaultCheckOptions
+
+{-# DEPRECATED checkPredicateGenOld "Uses old chain index" #-}
 -- | Check if the emulator trace meets the condition, using the
 --   'GeneratorModel' to generate initial transactions for the blockchain
-checkPredicateGen ::
+checkPredicateGenOld ::
     GeneratorModel
     -> TracePredicate
     -> EmulatorTrace ()
     -> Property
-checkPredicateGen = checkPredicateGenOptions defaultCheckOptions
+checkPredicateGenOld = checkPredicateGenOptionsOld defaultCheckOptions
 
+-- | Check if the emulator trace meets the condition, using the
+--   'GeneratorModel' to generate initial transactions for the blockchain
+checkPredicateGenV2 ::
+    GeneratorModel
+    -> TracePredicate
+    -> EmulatorTrace ()
+    -> Property
+checkPredicateGenV2 = checkPredicateGenOptionsV2 defaultCheckOptions
+
+{-# DEPRECATED checkPredicateInnerOld "Uses old chain index" #-}
 -- | Evaluate a trace predicate on an emulator trace, printing out debug information
 --   and making assertions as we go.
-checkPredicateInner :: forall m.
+checkPredicateInnerOld :: forall m.
     Monad m
     => CheckOptions
     -> TracePredicate
@@ -188,10 +214,10 @@ checkPredicateInner :: forall m.
     -> (String -> m ()) -- ^ Print out debug information in case of test failures
     -> (Bool -> m ()) -- ^ assert
     -> m ()
-checkPredicateInner CheckOptions{_minLogLevel, _maxSlot, _emulatorConfig} predicate action annot assert = do
+checkPredicateInnerOld CheckOptions{_minLogLevel, _maxSlot, _emulatorConfig} predicate action annot assert = do
     let dist = _emulatorConfig ^. initialChainState . to initialDist
         theStream :: forall effs. S.Stream (S.Of (LogMessage EmulatorEvent)) (Eff effs) ()
-        theStream = takeUntilSlot _maxSlot $ runEmulatorStream _emulatorConfig action
+        theStream = takeUntilSlot _maxSlot $ runEmulatorStreamOld _emulatorConfig action
         consumeStream :: forall a. S.Stream (S.Of (LogMessage EmulatorEvent)) (Eff TestEffects) a -> Eff TestEffects (S.Of Bool a)
         consumeStream = foldEmulatorStreamM @TestEffects predicate
     result <- runM
@@ -217,28 +243,92 @@ checkPredicateInner CheckOptions{_minLogLevel, _maxSlot, _emulatorConfig} predic
                 assert False
             Right _ -> assert False
 
+-- | Evaluate a trace predicate on an emulator trace, printing out debug information
+--   and making assertions as we go.
+checkPredicateInnerV2 :: forall m.
+    Monad m
+    => CheckOptions
+    -> TracePredicate
+    -> EmulatorTrace ()
+    -> (String -> m ()) -- ^ Print out debug information in case of test failures
+    -> (Bool -> m ()) -- ^ assert
+    -> m ()
+checkPredicateInnerV2 CheckOptions{_minLogLevel, _maxSlot, _emulatorConfig} predicate action annot assert = do
+    let dist = _emulatorConfig ^. initialChainState . to initialDist
+        theStream :: forall effs. S.Stream (S.Of (LogMessage EmulatorEvent)) (Eff effs) ()
+        theStream = takeUntilSlot _maxSlot $ runEmulatorStreamV2 _emulatorConfig action
+        consumeStream :: forall a. S.Stream (S.Of (LogMessage EmulatorEvent)) (Eff TestEffects) a -> Eff TestEffects (S.Of Bool a)
+        consumeStream = foldEmulatorStreamM @TestEffects predicate
+    result <- runM
+                $ reinterpret @(Writer (Doc Void)) @m  (\case { Tell d -> sendM $ annot $ Text.unpack $ renderStrict $ layoutPretty defaultLayoutOptions d })
+                $ runError
+                $ runReader dist
+                $ consumeStream theStream
+
+    unless (fmap S.fst' result == Right True) $ do
+        annot "Test failed."
+        annot "Emulator log:"
+        S.mapM_ annot
+            $ S.hoist runM
+            $ S.map (Text.unpack . renderStrict . layoutPretty defaultLayoutOptions . pretty)
+            $ filterLogLevel _minLogLevel
+            theStream
+
+        case result of
+            Left err -> do
+                annot "Error:"
+                annot (describeError err)
+                annot (show err)
+                assert False
+            Right _ -> assert False
+
+{-# DEPRECATED checkPredicateGenOptionsOld "Uses old chain index" #-}
 -- | A version of 'checkPredicateGen' with configurable 'CheckOptions'
-checkPredicateGenOptions ::
+checkPredicateGenOptionsOld ::
     CheckOptions
     -> GeneratorModel
     -> TracePredicate
     -> EmulatorTrace ()
     -> Property
-checkPredicateGenOptions options gm predicate action = property $ do
+checkPredicateGenOptionsOld options gm predicate action = property $ do
     Mockchain{mockchainInitialTxPool} <- forAll (Gen.genMockchain' gm)
     let options' = options & emulatorConfig . initialChainState .~ Right mockchainInitialTxPool
-    checkPredicateInner options' predicate action Hedgehog.annotate Hedgehog.assert
+    checkPredicateInnerOld options' predicate action Hedgehog.annotate Hedgehog.assert
 
+-- | A version of 'checkPredicateGen' with configurable 'CheckOptions'
+checkPredicateGenOptionsV2 ::
+    CheckOptions
+    -> GeneratorModel
+    -> TracePredicate
+    -> EmulatorTrace ()
+    -> Property
+checkPredicateGenOptionsV2 options gm predicate action = property $ do
+    Mockchain{mockchainInitialTxPool} <- forAll (Gen.genMockchain' gm)
+    let options' = options & emulatorConfig . initialChainState .~ Right mockchainInitialTxPool
+    checkPredicateInnerV2 options' predicate action Hedgehog.annotate Hedgehog.assert
+
+{-# DEPRECATED checkPredicateOptionsOld "Uses old chain index" #-}
 -- | A version of 'checkPredicate' with configurable 'CheckOptions'
-checkPredicateOptions ::
+checkPredicateOptionsOld ::
     CheckOptions -- ^ Options to use
     -> String -- ^ Descriptive name of the test
     -> TracePredicate -- ^ The predicate to check
     -> EmulatorTrace ()
     -> TestTree
-checkPredicateOptions options nm predicate action = do
+checkPredicateOptionsOld options nm predicate action = do
     HUnit.testCaseSteps nm $ \step -> do
-        checkPredicateInner options predicate action step (HUnit.assertBool nm)
+        checkPredicateInnerOld options predicate action step (HUnit.assertBool nm)
+
+-- | A version of 'checkPredicate' with configurable 'CheckOptions'
+checkPredicateOptionsV2 ::
+    CheckOptions -- ^ Options to use
+    -> String -- ^ Descriptive name of the test
+    -> TracePredicate -- ^ The predicate to check
+    -> EmulatorTrace ()
+    -> TestTree
+checkPredicateOptionsV2 options nm predicate action = do
+    HUnit.testCaseSteps nm $ \step -> do
+        checkPredicateInnerV2 options predicate action step (HUnit.assertBool nm)
 
 endpointAvailable
     :: forall (l :: Symbol) w s e a.

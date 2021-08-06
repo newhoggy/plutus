@@ -26,7 +26,7 @@ import qualified Wallet.Emulator.Folds         as Folds
 
 tests :: TestTree
 tests = testGroup "token account"
-    [ checkPredicate "Create a token account"
+    [ checkPredicateOld "Create a token account"
         (assertNoFailedTransactions
         .&&. assertNotDone contract (Trace.walletInstanceTag w1) "contract should not have any errors"
         .&&. walletFundsChange w1 theToken)
@@ -35,7 +35,7 @@ tests = testGroup "token account"
             Trace.callEndpoint @"new-account" hdl (tokenName, Ledger.pubKeyHash $ walletPubKey w1)
             void $ Trace.waitNSlots 2
 
-    , checkPredicate "Pay into the account"
+    , checkPredicateOld "Pay into the account"
         (assertNoFailedTransactions
         .&&. assertNotDone contract (Trace.walletInstanceTag w1) "contract should not have any errors"
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-10) <> theToken))
@@ -46,7 +46,7 @@ tests = testGroup "token account"
             Trace.callEndpoint @"pay" hdl (account, Ada.lovelaceValueOf 10)
             void $ Trace.waitNSlots 1
 
-    , checkPredicate "Transfer & redeem all funds"
+    , checkPredicateOld "Transfer & redeem all funds"
         (assertNoFailedTransactions
         .&&. assertNotDone contract (Trace.walletInstanceTag w1) "contract should not have any errors"
         .&&. walletFundsChange w1 (Ada.lovelaceValueOf (-10))
@@ -79,7 +79,7 @@ account =
         $ runError @Folds.EmulatorFoldErr
         $ foldEmulatorStreamM fld
         $ takeUntilSlot 10
-        $ Trace.runEmulatorStream def trace
+        $ Trace.runEmulatorStreamOld def trace
 
 theToken :: Value
 theToken = Accounts.accountToken account

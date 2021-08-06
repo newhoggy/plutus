@@ -10,6 +10,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -25,15 +26,15 @@ module Plutus.Contract.Request(
     , currentTime
     , waitNMilliSeconds
     -- ** Querying the UTXO set
-    , utxoAt
+    , utxoAtOld
     -- ** Waiting for changes to the UTXO set
-    , addressChangeRequest
-    , nextTransactionsAt
-    , fundsAtAddressGt
-    , fundsAtAddressGeq
-    , fundsAtAddressCondition
-    , watchAddressUntilSlot
-    , watchAddressUntilTime
+    , addressChangeRequestOld
+    , nextTransactionsAtOld
+    , fundsAtAddressGtOld
+    , fundsAtAddressGeqOld
+    , fundsAtAddressConditionOld
+    , watchAddressUntilSlotOld
+    , watchAddressUntilTimeOld
     -- ** Tx confirmation
     , TxStatus(..)
     , awaitTxStatusChange
@@ -73,6 +74,9 @@ import qualified Control.Monad.Freer.Error   as E
 import           Data.Aeson                  (FromJSON, ToJSON)
 import qualified Data.Aeson                  as JSON
 import qualified Data.Aeson.Types            as JSON
+import           Data.Map                    (Map)
+import qualified Data.Map                    as Map
+import           Data.Maybe                  (mapMaybe)
 import           Data.Proxy                  (Proxy (..))
 import           Data.Row
 import qualified Data.Text                   as Text
@@ -80,8 +84,10 @@ import           Data.Text.Extras            (tshow)
 import           Data.Void                   (Void)
 import           GHC.Natural                 (Natural)
 import           GHC.TypeLits                (Symbol, symbolVal)
-import           Ledger                      (Address, DiffMilliSeconds, OnChainTx (..), POSIXTime, PubKey, Slot, Tx,
-                                              TxId, TxOut (..), TxOutTx (..), Value, fromMilliSeconds, txId)
+import           Ledger                      (Address (..), Datum, DatumHash, DiffMilliSeconds, MintingPolicy,
+                                              MintingPolicyHash, OnChainTx (..), POSIXTime, PubKey, Slot, Tx, TxId,
+                                              TxOut (..), TxOutRef, TxOutTx (..), Validator, ValidatorHash, Value,
+                                              fromMilliSeconds, txId)
 import           Ledger.AddressMap           (UtxoMap)
 import           Ledger.Constraints          (TxConstraints)
 import           Ledger.Constraints.OffChain (ScriptLookups, UnbalancedTx)
@@ -89,6 +95,7 @@ import qualified Ledger.Constraints.OffChain as Constraints
 import           Ledger.Typed.Scripts        (TypedValidator, ValidatorTypes (..))
 import qualified Ledger.Value                as V
 import           Plutus.Contract.Util        (loopM)
+import           Plutus.V1.Ledger.Credential (Credential)
 import qualified PlutusTx
 
 import           Plutus.Contract.Effects     (ActiveEndpoint (..), PABReq (..), PABResp (..), TxStatus (..),
@@ -98,6 +105,7 @@ import           Plutus.Contract.Schema      (Input, Output)
 import           Wallet.Types                (AddressChangeRequest (..), AddressChangeResponse (..), ContractInstanceId,
                                               EndpointDescription (..), EndpointValue (..), targetSlot)
 
+import           Plutus.ChainIndex           (ChainIndexTx, Page (pageItems), Tip)
 import           Plutus.Contract.Resumable
 import           Plutus.Contract.Types
 
@@ -212,14 +220,141 @@ waitNMilliSeconds n = do
   t <- currentTime
   awaitTime $ t + fromMilliSeconds n
 
--- | Get the unspent transaction outputs at an address.
-utxoAt ::
+-- | TODO: To delete. Uses the old chain index.
+utxoAtOld ::
     forall w s e.
     ( AsContractError e
     )
     => Address
     -> Contract w s e UtxoMap
-utxoAt addr = fmap utxo $ pabReq (UtxoAtReq addr) E._UtxoAtResp
+utxoAtOld addr = fmap utxo $ pabReq (UtxoAtReq addr) E._UtxoAtResp
+
+-- | Get the unspent transaction outputs at an address.
+utxosAt ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => Address
+    -> Contract w s e (Map TxOutRef TxOut)
+utxosAt addr = do
+  utxoRefs <- fmap (pageItems . snd) $ utxoRefsAt $ addressCredential addr
+  txOuts <- traverse utxoFromRef utxoRefs
+  pure $ Map.fromList
+       $ mapMaybe (\(ref, txOut) -> fmap (ref,) txOut)
+       $ zip utxoRefs txOuts
+
+datumFromHash ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => DatumHash
+    -> Contract w s e (Maybe Datum)
+datumFromHash h = do
+  cir <- pabReq (ChainIndexQueryReq $ E.DatumFromHash h) E._ChainIndexQueryResp
+  case cir of
+    E.DatumHashResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request DatumFromHash from the chain index"
+
+validatorFromHash ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => ValidatorHash
+    -> Contract w s e (Maybe Validator)
+validatorFromHash h = do
+  cir <- pabReq (ChainIndexQueryReq $ E.ValidatorFromHash h) E._ChainIndexQueryResp
+  case cir of
+    E.ValidatorHashResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request ValidatorFromHash from the chain index"
+
+mintingPolicyFromHash ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => MintingPolicyHash
+    -> Contract w s e (Maybe MintingPolicy)
+mintingPolicyFromHash h = do
+  cir <- pabReq (ChainIndexQueryReq $ E.MintingPolicyFromHash h) E._ChainIndexQueryResp
+  case cir of
+    E.MintingPolicyHashResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request MintingPolicyFromHash from the chain index"
+
+utxoFromRef ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => TxOutRef
+    -> Contract w s e (Maybe TxOut)
+utxoFromRef ref = do
+  cir <- pabReq (ChainIndexQueryReq $ E.TxOutFromRef ref) E._ChainIndexQueryResp
+  case cir of
+    E.TxOutRefResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request TxOutFromRef from the chain index"
+
+txFromTxId ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => TxId
+    -> Contract w s e (Maybe ChainIndexTx)
+txFromTxId txid = do
+  cir <- pabReq (ChainIndexQueryReq $ E.TxFromTxId txid) E._ChainIndexQueryResp
+  case cir of
+    E.TxIdResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request TxFromTxId from the chain index"
+
+utxoRefMembership ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => TxOutRef
+    -> Contract w s e (Tip, Bool)
+utxoRefMembership ref = do
+  cir <- pabReq (ChainIndexQueryReq $ E.UtxoSetMembership ref) E._ChainIndexQueryResp
+  case cir of
+    E.UtxoSetMembershipResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request UtxoSetMembership from the chain index"
+
+utxoRefsAt ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => Credential
+    -> Contract w s e (Tip, Page TxOutRef)
+utxoRefsAt cred = do
+  cir <- pabReq (ChainIndexQueryReq $ E.UtxoSetAtAddress cred) E._ChainIndexQueryResp
+  case cir of
+    E.UtxoSetAtResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request UtxoSetAtAddress from the chain index"
+
+getTip ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => Contract w s e Tip
+getTip = do
+  cir <- pabReq (ChainIndexQueryReq E.GetTip) E._ChainIndexQueryResp
+  case cir of
+    E.GetTipResponse r -> pure r
+    _ -> throwError $ review _OtherError
+                    $ Text.pack "Could not request GetTip from the chain index"
+
+-- | TODO: To delete. Uses the old chain index.
+watchAddressUntilSlotOld ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => Address
+    -> Slot
+    -> Contract w s e UtxoMap
+watchAddressUntilSlotOld a slot = awaitSlot slot >> utxoAtOld a
 
 -- | Wait until the target slot and get the unspent transaction outputs at an
 -- address.
@@ -229,8 +364,18 @@ watchAddressUntilSlot ::
     )
     => Address
     -> Slot
+    -> Contract w s e (Map TxOutRef TxOut)
+watchAddressUntilSlot a slot = awaitSlot slot >> utxosAt a
+
+-- | TODO: To delete. Uses the old chain index.
+watchAddressUntilTimeOld ::
+    forall w s e.
+    ( AsContractError e
+    )
+    => Address
+    -> POSIXTime
     -> Contract w s e UtxoMap
-watchAddressUntilSlot a slot = awaitSlot slot >> utxoAt a
+watchAddressUntilTimeOld a time = awaitTime time >> utxoAtOld a
 
 -- | Wait until the target time and get the unspent transaction outputs at an
 -- address.
@@ -240,40 +385,48 @@ watchAddressUntilTime ::
     )
     => Address
     -> POSIXTime
-    -> Contract w s e UtxoMap
-watchAddressUntilTime a time = awaitTime time >> utxoAt a
+    -> Contract w s e (Map TxOutRef TxOut)
+watchAddressUntilTime a time = awaitTime time >> utxosAt a
 
-{-| Get the transactions that modified an address in a specific slot.
--}
-addressChangeRequest ::
+-- | TODO: To delete. Uses the old chain index.
+addressChangeRequestOld ::
     forall w s e.
     ( AsContractError e
     )
     => AddressChangeRequest
     -> Promise w s e AddressChangeResponse
-addressChangeRequest r = isSlot (targetSlot r) `promiseBind` \_ -> do
-  resp <- pabReq (AddressChangeReq r) E._AddressChangeResp
-  pure resp
+addressChangeRequestOld r = isSlot (targetSlot r) `promiseBind` \_ -> do
+  pabReq (AddressChangeReq r) E._AddressChangeResp
 
--- | Call 'addresssChangeRequest' for the address in each slot, until at least one
---   transaction is returned that modifies the address.
-nextTransactionsAt ::
+-- | TODO: To delete. Uses the old chain index.
+nextTransactionsAtOld ::
     forall w s e.
     ( AsContractError e
     )
     => Address
     -> Contract w s e [OnChainTx]
-nextTransactionsAt addr = do
+nextTransactionsAtOld addr = do
     initial <- currentSlot
     let go :: Slot -> Contract w s ContractError (Either [OnChainTx] Slot)
         go sl = do
             let request = AddressChangeRequest{acreqSlotRangeFrom = sl, acreqSlotRangeTo = sl, acreqAddress=addr}
             _ <- awaitSlot (targetSlot request)
-            txns <- acrTxns <$> awaitPromise (addressChangeRequest request)
+            txns <- acrTxns <$> awaitPromise (addressChangeRequestOld request)
             if null txns
                 then pure $ Right (succ sl)
                 else pure $ Left txns
     mapError (review _ContractError) (checkpointLoop go initial)
+
+-- | TODO: To delete. Uses the old chain index.
+fundsAtAddressGtOld
+    :: forall w s e.
+       ( AsContractError e
+       )
+    => Address
+    -> Value
+    -> Contract w s e UtxoMap
+fundsAtAddressGtOld addr vl =
+    fundsAtAddressConditionOld (\presentVal -> presentVal `V.gt` vl) addr
 
 -- | Watch an address for changes, and return the outputs
 --   at that address when the total value at the address
@@ -284,9 +437,26 @@ fundsAtAddressGt
        )
     => Address
     -> Value
-    -> Contract w s e UtxoMap
+    -> Contract w s e (Map TxOutRef TxOut)
 fundsAtAddressGt addr vl =
     fundsAtAddressCondition (\presentVal -> presentVal `V.gt` vl) addr
+
+-- | TODO: To delete. Uses the old chain index.
+fundsAtAddressConditionOld
+    :: forall w s e.
+       ( AsContractError e
+       )
+    => (Value -> Bool)
+    -> Address
+    -> Contract w s e UtxoMap
+fundsAtAddressConditionOld condition addr = loopM go () where
+    go () = do
+        cur <- utxoAtOld addr
+        sl <- currentSlot
+        let presentVal = foldMap (txOutValue . txOutTxOut) cur
+        if condition presentVal
+            then pure (Right cur)
+            else awaitSlot (sl + 1) >> pure (Left ())
 
 fundsAtAddressCondition
     :: forall w s e.
@@ -294,15 +464,26 @@ fundsAtAddressCondition
        )
     => (Value -> Bool)
     -> Address
-    -> Contract w s e UtxoMap
+    -> Contract w s e (Map TxOutRef TxOut)
 fundsAtAddressCondition condition addr = loopM go () where
     go () = do
-        cur <- utxoAt addr
+        cur <- utxosAt addr
         sl <- currentSlot
-        let presentVal = foldMap (txOutValue . txOutTxOut) cur
+        let presentVal = foldMap txOutValue cur
         if condition presentVal
             then pure (Right cur)
             else awaitSlot (sl + 1) >> pure (Left ())
+
+-- | TODO: To delete. Uses the old chain index.
+fundsAtAddressGeqOld
+    :: forall w s e.
+       ( AsContractError e
+       )
+    => Address
+    -> Value
+    -> Contract w s e UtxoMap
+fundsAtAddressGeqOld addr vl =
+    fundsAtAddressConditionOld (\presentVal -> presentVal `V.geq` vl) addr
 
 -- | Watch an address for changes, and return the outputs
 --   at that address when the total value at the address
@@ -313,7 +494,7 @@ fundsAtAddressGeq
        )
     => Address
     -> Value
-    -> Contract w s e UtxoMap
+    -> Contract w s e (Map TxOutRef TxOut)
 fundsAtAddressGeq addr vl =
     fundsAtAddressCondition (\presentVal -> presentVal `V.geq` vl) addr
 

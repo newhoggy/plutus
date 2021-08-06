@@ -36,10 +36,9 @@ rec {
   inherit (plutus) web-ghc;
 
   inherit (haskell.packages.plutus-pab.components.exes)
-    plutus-game
-    plutus-currency
-    plutus-atomic-swap
-    plutus-pay-to-wallet;
+    plutus-uniswap
+    tx-inject
+    sync-client;
 
   webCommon = pkgs.callPackage ./web-common { inherit (plutus.lib) gitignore-nix; };
   webCommonPlutus = pkgs.callPackage ./web-common-plutus { inherit (plutus.lib) gitignore-nix; };

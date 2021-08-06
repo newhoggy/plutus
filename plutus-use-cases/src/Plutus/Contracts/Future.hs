@@ -519,7 +519,7 @@ settleFuture
     => SM.StateMachineClient FutureState FutureAction
     -> Promise w s e ()
 settleFuture client = promiseMap (mapError (review _FutureError)) $ endpoint @"settle-future" $ \ov -> do
-    void $ SM.runStep client (Settle ov)
+    void $ SM.runStepOld client (Settle ov)
 
 -- | The @"settle-early"@ endpoint. Given an oracle value with the current spot
 --   price, this endpoint creates the final transaction that distributes the
@@ -534,7 +534,7 @@ settleEarly
     => SM.StateMachineClient FutureState FutureAction
     -> Promise w s e ()
 settleEarly client = endpoint @"settle-early" $ \ov -> do
-    void $ SM.runStep client (SettleEarly ov)
+    void $ SM.runStepOld client (SettleEarly ov)
 
 -- | The @"increase-margin"@ endpoint. Increses the margin of one of
 --   the roles by an amount.
@@ -546,7 +546,7 @@ increaseMargin
     => SM.StateMachineClient FutureState FutureAction
     -> Promise w s e ()
 increaseMargin client = endpoint @"increase-margin" $ \(value, role) -> do
-    void $ SM.runStep client (AdjustMargin role value)
+    void $ SM.runStepOld client (AdjustMargin role value)
 
 -- | The @"join-future"@ endpoint. Join a future contract by paying the initial
 --   margin to the escrow that initialises the contract.
@@ -619,7 +619,7 @@ testAccounts =
         $ Freer.runError @Folds.EmulatorFoldErr
         $ Stream.foldEmulatorStreamM fld
         $ Stream.takeUntilSlot 10
-        $ Trace.runEmulatorStream def setupTokensTrace
+        $ Trace.runEmulatorStreamOld def setupTokensTrace
 
 setupTokensTrace :: Trace.EmulatorTrace ()
 setupTokensTrace = do
