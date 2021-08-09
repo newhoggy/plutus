@@ -12,7 +12,7 @@ import qualified PlutusCore                               as PLC
 import           PlutusCore.Check.Uniques                 as PLC (checkProgram)
 import           PlutusCore.Error                         (AsParseError, AsUniqueError, UniqueError)
 import           PlutusCore.Evaluation.Machine.ExBudget   (ExBudget (..), ExRestrictingBudget (..))
-import           PlutusCore.Evaluation.Machine.ExMemory   (ExCPU (..), ExMemory (..))
+import           PlutusCore.Evaluation.Machine.ExMemory   (ExCPU (..))
 import qualified PlutusCore.Generators                    as Gen
 import qualified PlutusCore.Generators.Interesting        as Gen
 import qualified PlutusCore.Generators.Test               as Gen
@@ -118,10 +118,8 @@ printBudgetStateBudget model b =
     case model of
       Unit -> pure ()
       _ ->  let ExCPU cpu = _exBudgetCPU b
-                ExMemory mem = _exBudgetMemory b
             in do
               putStrLn $ "CPU budget:    " ++ show cpu
-              putStrLn $ "Memory budget: " ++ show mem
 
 printBudgetStateTally :: (Eq fun, Cek.Hashable fun, Show fun)
        => UPLC.Term UPLC.Name PLC.DefaultUni PLC.DefaultFun () -> CekModel ->  Cek.CekExTally fun -> IO ()
@@ -153,11 +151,11 @@ printBudgetStateTally term model (Cek.CekExTally costs) = do
         getSpent k =
             case H.lookup k costs of
               Just v  -> v
-              Nothing -> ExBudget 0 0
+              Nothing -> ExBudget 0
         allNodeTags = fmap Cek.BStep [Cek.BConst, Cek.BVar, Cek.BLamAbs, Cek.BApply, Cek.BDelay, Cek.BForce, Cek.BBuiltin]
         totalComputeCost = mconcat $ map getSpent allNodeTags  -- For unitCekCosts this will be the total number of compute steps
-        budgetToString (ExBudget (ExCPU cpu) (ExMemory mem)) =
-            printf "%15s  %15s" (show cpu) (show mem) :: String -- Not %d: doesn't work when CostingInteger is SatInt.
+        budgetToString (ExBudget (ExCPU cpu)) =
+            printf "%15s" (show cpu):: String -- Not %d: doesn't work when CostingInteger is SatInt.
         pbudget = budgetToString . getSpent
         f l e = case e of {(Cek.BBuiltinApp b, cost)  -> (b,cost):l; _ -> l}
         builtinsAndCosts = List.foldl f [] (H.toList costs)

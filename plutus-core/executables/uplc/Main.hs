@@ -8,13 +8,12 @@ import           Common
 import           Parsers
 import qualified PlutusCore                               as PLC
 import           PlutusCore.Evaluation.Machine.ExBudget   (ExBudget (..), ExRestrictingBudget (..))
-import           PlutusCore.Evaluation.Machine.ExMemory   (ExCPU (..), ExMemory (..))
+import           PlutusCore.Evaluation.Machine.ExMemory   (ExCPU (..))
 
 import           Data.Foldable                            (asum)
 import           Data.Function                            ((&))
 import           Data.Functor                             (void)
 import           Data.List                                (nub)
-import           Data.List.Split                          (splitOn)
 
 import qualified UntypedPlutusCore                        as UPLC
 import qualified UntypedPlutusCore.Evaluation.Machine.Cek as Cek
@@ -63,11 +62,9 @@ evalOpts =
 exbudgetReader :: ReadM ExBudget
 exbudgetReader = do
   s <- str
-  case splitOn ":" s of
-    [a,b] -> case (readMaybe a, readMaybe b) of
-               (Just cpu, Just mem) -> pure $ ExBudget (ExCPU cpu) (ExMemory mem)
-               _                    -> readerError badfmt
-    _     -> readerError badfmt
+  case readMaybe s of
+    Just cpu -> pure $ ExBudget (ExCPU cpu)
+    _        -> readerError badfmt
     where badfmt = "Invalid budget (expected eg 10000:50000)"
 
 restrictingbudgetEnormous :: Parser BudgetMode

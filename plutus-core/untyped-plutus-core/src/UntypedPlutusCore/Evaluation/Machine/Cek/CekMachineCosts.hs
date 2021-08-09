@@ -56,5 +56,5 @@ unitCekMachineCosts =
                     , cekBuiltinCost = unitCost
                     }
         where
-          zeroCost = ExBudget 0 0
-          unitCost = ExBudget 1 0
+          zeroCost = ExBudget 0
+          unitCost = ExBudget 1

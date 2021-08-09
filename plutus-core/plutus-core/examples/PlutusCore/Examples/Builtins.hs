@@ -168,26 +168,26 @@ instance uni ~ DefaultUni => ToBuiltinMeaning uni ExtensionFun where
     toBuiltinMeaning Const =
         makeBuiltinMeaning
             const
-            (\_ _ _ -> ExBudget 1 0)
+            (\_ _ _ -> ExBudget 1)
 
     toBuiltinMeaning Id =
         makeBuiltinMeaning
             Prelude.id
-            (\_ _ -> ExBudget 1 0)
+            (\_ _ -> ExBudget 1)
 
     toBuiltinMeaning IdFInteger =
         makeBuiltinMeaning
             (Prelude.id
                 :: a ~ Opaque term (TyAppRep (TyVarRep ('TyNameRep "f" 0)) Integer)
                 => a -> a)
-            (\_ _ -> ExBudget 1 0)
+            (\_ _ -> ExBudget 1)
 
     toBuiltinMeaning IdList =
         makeBuiltinMeaning
             (Prelude.id
                 :: a ~ Opaque term (PlcListRep (TyVarRep ('TyNameRep "a" 0)))
                 => a -> a)
-            (\_ _ -> ExBudget 1 0)
+            (\_ _ -> ExBudget 1)
 
     toBuiltinMeaning IdRank2 =
         makeBuiltinMeaning
@@ -197,13 +197,13 @@ instance uni ~ DefaultUni => ToBuiltinMeaning uni ExtensionFun where
                    , afa ~ Opaque term (TyForallRep a (TyAppRep (TyVarRep f) (TyVarRep a)))
                    )
                 => afa -> afa)
-            (\_ _ -> ExBudget 1 0)
+            (\_ _ -> ExBudget 1)
 
     toBuiltinMeaning FailingSucc =
         makeBuiltinMeaning
             @(Integer -> Integer)
             (\_ -> throw BuiltinErrorCall)
-            (\_ _ -> ExBudget 1 0)
+            (\_ _ -> ExBudget 1)
 
     toBuiltinMeaning ExpensiveSucc =
         makeBuiltinMeaning
@@ -215,7 +215,7 @@ instance uni ~ DefaultUni => ToBuiltinMeaning uni ExtensionFun where
         makeBuiltinMeaning
             @(Integer -> Integer -> Integer)
             (\_ _ -> throw BuiltinErrorCall)
-            (\_ _ _ -> ExBudget 1 0)
+            (\_ _ _ -> ExBudget 1)
 
     toBuiltinMeaning ExpensivePlus =
         makeBuiltinMeaning
@@ -228,7 +228,7 @@ instance uni ~ DefaultUni => ToBuiltinMeaning uni ExtensionFun where
             (absurd
                 :: a ~ Opaque term (TyVarRep ('TyNameRep "a" 0))
                 => Void -> a)
-            (\_ _ -> ExBudget 1 0)
+            (\_ _ -> ExBudget 1)
 
     toBuiltinMeaning Cons = makeBuiltinMeaning consPlc mempty where
         consPlc

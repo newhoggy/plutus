@@ -102,7 +102,6 @@ deriving instance AllArgumentModels Eq      f => Eq      (BuiltinCostModelBase f
 
 data CostingFun model = CostingFun
     { costingFunCpu    :: model
-    , costingFunMemory :: model
     }
     deriving (Show, Eq, Generic, Lift, Default, NFData)
     deriving (FromJSON, ToJSON) via CustomJSON
@@ -119,8 +118,8 @@ instance Default ModelOneArgument where
 
 runCostingFunOneArgument :: CostingFun ModelOneArgument -> ExMemory -> ExBudget
 runCostingFunOneArgument
-    (CostingFun cpu mem) mem1 =
-        ExBudget (ExCPU $ runOneArgumentModel cpu mem1) (ExMemory $ runOneArgumentModel mem mem1)
+    (CostingFun cpu) mem1 =
+        ExBudget (ExCPU $ runOneArgumentModel cpu mem1)
 
 runOneArgumentModel :: ModelOneArgument -> ExMemory -> CostingInteger
 runOneArgumentModel (ModelOneArgumentConstantCost c) _ = c
@@ -208,8 +207,8 @@ instance Default ModelTwoArguments where
     def = ModelTwoArgumentsConstantCost 0
 
 runCostingFunTwoArguments :: CostingFun ModelTwoArguments -> ExMemory -> ExMemory -> ExBudget
-runCostingFunTwoArguments (CostingFun cpu mem) mem1 mem2 =
-    ExBudget (ExCPU (runTwoArgumentModel cpu mem1 mem2)) (ExMemory (runTwoArgumentModel mem mem1 mem2))
+runCostingFunTwoArguments (CostingFun cpu) mem1 mem2 =
+    ExBudget (ExCPU (runTwoArgumentModel cpu mem1 mem2))
 
 runTwoArgumentModel :: ModelTwoArguments -> ExMemory -> ExMemory -> CostingInteger
 runTwoArgumentModel
@@ -256,5 +255,5 @@ runThreeArgumentModel (ModelThreeArgumentsAddedSizes (ModelAddedSizes intercept 
     (size1 + size2 + size3) * slope + intercept
 
 runCostingFunThreeArguments :: CostingFun ModelThreeArguments -> ExMemory -> ExMemory -> ExMemory -> ExBudget
-runCostingFunThreeArguments (CostingFun cpu mem) mem1 mem2 mem3 =
-    ExBudget (ExCPU $ runThreeArgumentModel cpu mem1 mem2 mem3) (ExMemory $ runThreeArgumentModel mem mem1 mem2 mem3)
+runCostingFunThreeArguments (CostingFun cpu) mem1 mem2 mem3 =
+    ExBudget (ExCPU $ runThreeArgumentModel cpu mem1 mem2 mem3)

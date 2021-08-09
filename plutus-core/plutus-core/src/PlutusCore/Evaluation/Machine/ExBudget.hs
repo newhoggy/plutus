@@ -172,7 +172,7 @@ class ExBudgetBuiltin fun exBudgetCat where
 instance ExBudgetBuiltin fun () where
     exBudgetBuiltin _ = ()
 
-data ExBudget = ExBudget { _exBudgetCPU :: ExCPU, _exBudgetMemory :: ExMemory }
+newtype ExBudget = ExBudget { _exBudgetCPU :: ExCPU }
     deriving stock (Eq, Show, Generic, Lift)
     deriving anyclass (PrettyBy config, NFData)
     deriving (FromJSON, ToJSON) via CustomJSON '[FieldLabelModifier LowerIntialCharacter] ExBudget
@@ -181,18 +181,17 @@ data ExBudget = ExBudget { _exBudgetCPU :: ExCPU, _exBudgetMemory :: ExMemory }
 -- These functions are performance critical, so we can't use GenericSemigroupMonoid, and we insist that they be inlined.
 instance Semigroup ExBudget where
     {-# INLINE (<>) #-}
-    (ExBudget cpu1 mem1) <> (ExBudget cpu2 mem2) = ExBudget (cpu1 <> cpu2) (mem1 <> mem2)
+    (ExBudget cpu1) <> (ExBudget cpu2) = ExBudget (cpu1 <> cpu2)
     -- This absolutely must be inlined so that the 'fromIntegral' calls can get optimized away, or it destroys performance
     {-# INLINE stimes #-}
-    stimes r (ExBudget (ExCPU cpu) (ExMemory mem)) = ExBudget (ExCPU (fromIntegral r * cpu)) (ExMemory (fromIntegral r * mem))
+    stimes r (ExBudget (ExCPU cpu)) = ExBudget (ExCPU (fromIntegral r * cpu))
 
 instance Monoid ExBudget where
-    mempty = ExBudget mempty mempty
+    mempty = ExBudget mempty
 
 instance Pretty ExBudget where
-    pretty (ExBudget cpu memory) = parens $ fold
+    pretty (ExBudget cpu) = parens $ fold
         [ "{ cpu: ", pretty cpu, line
-        , "| mem: ", pretty memory, line
         , "}"
         ]
 
@@ -205,5 +204,5 @@ newtype ExRestrictingBudget = ExRestrictingBudget
 -- | When we want to just evaluate the program we use the 'Restricting' mode with an enormous
 -- budget, so that evaluation costs of on-chain budgeting are reflected accurately in benchmarks.
 enormousBudget :: ExRestrictingBudget
-enormousBudget = ExRestrictingBudget $ ExBudget (ExCPU maxInt) (ExMemory maxInt)
+enormousBudget = ExRestrictingBudget $ ExBudget (ExCPU maxInt)
                  where maxInt = fromIntegral (maxBound ::Int)
