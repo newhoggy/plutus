@@ -105,14 +105,6 @@ prop_concatenate :: Property
 prop_concatenate =
     testPredictTwo concatenate (getConst . paramConcatenate)
 
-prop_takeByteString :: Property
-prop_takeByteString =
-    testPredictTwo takeByteString (getConst . paramTakeByteString)
-
-prop_dropByteString :: Property
-prop_dropByteString =
-    testPredictTwo dropByteString (getConst . paramDropByteString)
-
 prop_sha2_256 :: Property
 prop_sha2_256 =
     testPredictOne sha2_256 (getConst . paramSha2_256)

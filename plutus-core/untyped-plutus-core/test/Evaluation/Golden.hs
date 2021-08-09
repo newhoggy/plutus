@@ -300,11 +300,6 @@ mulInstError2 = Apply () (TyInst () (Apply () mul eleven) string) twentytwo
 mulInstError3 :: Term TyName Name DefaultUni DefaultFun ()
 mulInstError3 = TyInst () (Apply () (Apply () mul eleven) twentytwo) string
 
-takeTooMuch :: Term TyName Name DefaultUni DefaultFun ()
-takeTooMuch = mkIterApp () (Builtin () TakeByteString)
-    [ mkConstant () $ (2 :: Integer) ^ (150 :: Integer)
-    , mkConstant () ("whatever" :: BS.ByteString)
-    ]
 
 -- Running the tests
 

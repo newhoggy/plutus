@@ -52,8 +52,6 @@ data DefaultFun
     | GreaterThanEqualsInteger
     | EqualsInteger
     | Concatenate
-    | TakeByteString
-    | DropByteString
     | Sha2_256
     | Sha3_256
     | VerifySignature
@@ -176,14 +174,6 @@ instance uni ~ DefaultUni => ToBuiltinMeaning uni DefaultFun where
         makeBuiltinMeaning
             BS.append
             (runCostingFunTwoArguments . paramConcatenate)
-    toBuiltinMeaning TakeByteString =
-        makeBuiltinMeaning
-            BS.take
-            (runCostingFunTwoArguments . paramTakeByteString)
-    toBuiltinMeaning DropByteString =
-        makeBuiltinMeaning
-            BS.drop
-            (runCostingFunTwoArguments . paramDropByteString)
     toBuiltinMeaning Sha2_256 =
         makeBuiltinMeaning
             Hash.sha2
@@ -411,8 +401,6 @@ instance Flat DefaultFun where
               GreaterThanEqualsInteger -> 8
               EqualsInteger            -> 9
               Concatenate              -> 10
-              TakeByteString           -> 11
-              DropByteString           -> 12
               Sha2_256                 -> 13
               Sha3_256                 -> 14
               VerifySignature          -> 15
@@ -468,8 +456,6 @@ instance Flat DefaultFun where
               go 8  = pure GreaterThanEqualsInteger
               go 9  = pure EqualsInteger
               go 10 = pure Concatenate
-              go 11 = pure TakeByteString
-              go 12 = pure DropByteString
               go 13 = pure Sha2_256
               go 14 = pure Sha3_256
               go 15 = pure VerifySignature

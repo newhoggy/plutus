@@ -278,8 +278,6 @@ defineBuiltinTerms = do
 
     -- Bytestring builtins
     defineBuiltinTerm 'Builtins.concatenate $ mkBuiltin PLC.Concatenate
-    defineBuiltinTerm 'Builtins.takeByteString $ mkBuiltin PLC.TakeByteString
-    defineBuiltinTerm 'Builtins.dropByteString $ mkBuiltin PLC.DropByteString
     defineBuiltinTerm 'Builtins.sha2_256 $ mkBuiltin PLC.Sha2_256
     defineBuiltinTerm 'Builtins.sha3_256 $ mkBuiltin PLC.Sha3_256
     defineBuiltinTerm 'Builtins.equalsByteString $ mkBuiltin PLC.EqualsByteString

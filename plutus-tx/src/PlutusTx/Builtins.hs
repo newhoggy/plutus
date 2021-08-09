@@ -6,8 +6,6 @@ module PlutusTx.Builtins (
                                 -- * Bytestring builtins
                                 BuiltinByteString
                                 , concatenate
-                                , takeByteString
-                                , dropByteString
                                 , emptyByteString
                                 , equalsByteString
                                 , lessThanByteString
