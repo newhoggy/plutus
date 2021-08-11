@@ -460,6 +460,7 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
             (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
             (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
             (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
@@ -502,11 +503,16 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."criterion" or (errorHandler.buildDepError "criterion"))
+            (hsPkgs."criterion-measurement" or (errorHandler.buildDepError "criterion-measurement"))
+            (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."random" or (errorHandler.buildDepError "random"))
             ];
           buildable = true;
+          modules = [ "CriterionExtensions" "Nops" ];
           hsSourceDirs = [ "cost-model/budgeting-bench" ];
           };
         "update-cost-model" = {

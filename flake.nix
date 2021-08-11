@@ -20,7 +20,7 @@
       repo = "nixpkgs";
 
       # We pin this revision to avoid mass-rebuilds from the auto-update process.
-      rev = "0747387223edf1aa5beaedf48983471315d95e16";
+      rev = "2457ddc9522b0861649ee5e952fa2e505c1743b7";
 
       ref = "nixpkgs-unstable";
 
@@ -28,7 +28,7 @@
     };
     haskell-nix = {
       # We pin this revision to avoid mass-rebuilds from the auto-update process.
-      url = "github:input-output-hk/haskell.nix?rev=d5d304d5b50db1e584ce62915c48fc8c0c8b626a";
+      url = "github:input-output-hk/haskell.nix?rev=40c97135df2d83ac0d5531a32028d23eca6d130e";
 
       flake = false;
     };
