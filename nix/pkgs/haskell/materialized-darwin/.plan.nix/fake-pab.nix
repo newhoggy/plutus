@@ -15,7 +15,7 @@
       license = "Apache-2.0";
       copyright = "";
       maintainer = "";
-      author = "Pablo Lamela ";
+      author = "Pablo Lamela";
       homepage = "";
       url = "";
       synopsis = "";
