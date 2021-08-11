@@ -12,7 +12,11 @@ let
         );
   };
 in
-runCommand "shellcheck" { buildInputs = [ shellcheck ]; } ''
+runCommand "shellcheck"
+{
+  buildInputs = [ shellcheck ];
+  meta.platforms = with lib.platforms; [ linux darwin ];
+} ''
   EXIT_STATUS=0
   cd ${src'}
   while IFS= read -r -d ''' i

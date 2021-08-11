@@ -33,6 +33,7 @@
     components = {
       "library" = {
         depends = [
+          (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
@@ -55,7 +56,7 @@
           (hsPkgs."wl-pprint" or (errorHandler.buildDepError "wl-pprint"))
           (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
           (hsPkgs."semigroups" or (errorHandler.buildDepError "semigroups"))
-          ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
+          ];
         buildable = true;
         modules = [
           "Language/Marlowe"
@@ -71,6 +72,7 @@
       exes = {
         "marlowe-pab" = {
           depends = [
+            (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
@@ -84,18 +86,19 @@
             (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
             (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
             (hsPkgs."marlowe" or (errorHandler.buildDepError "marlowe"))
-            ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
+            ];
           buildable = true;
           modules = [ "MarloweContracts" ];
           hsSourceDirs = [ "pab" ];
-          mainPath = ([
+          mainPath = [
             "Main.hs"
-            ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) "") ++ (pkgs.lib).optional (flags.defer-plugin-errors) "";
+            ] ++ (pkgs.lib).optional (flags.defer-plugin-errors) "";
           };
         };
       tests = {
         "marlowe-test" = {
           depends = [
+            (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
@@ -119,7 +122,7 @@
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
             (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
-            ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
+            ];
           buildable = true;
           modules = [
             "Spec/Marlowe/Common"

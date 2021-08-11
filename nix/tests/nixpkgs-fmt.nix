@@ -1,4 +1,4 @@
-{ runCommand, nixpkgs-fmt, src }:
+{ lib, runCommand, nixpkgs-fmt, src }:
 
 # Runs `nixpkgs-fmt --check` on ${src}. If nixpkgs-fmt
 # reports that files need to be re-formatted details are
@@ -6,6 +6,7 @@
 runCommand "nixpkgs-fmt"
 {
   buildInputs = [ nixpkgs-fmt ];
+  meta.platforms = with lib.platforms; [ linux darwin ];
 } ''
   set +e
   nixpkgs-fmt --check ${src} 2>&1 >nixpkgs-fmt.log

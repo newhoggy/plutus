@@ -2,6 +2,7 @@
 let
   inherit (pkgs) lib;
   inherit (plutus) agdaWithStdlib;
+  nativeOnly = lib.meta.addMetaAttrs { platforms = with lib.platforms; [ linux darwin ]; };
 
   latex = pkgs.callPackage ./lib/latex.nix { };
 
@@ -48,31 +49,31 @@ let
 in
 pkgs.recurseIntoAttrs {
   papers = pkgs.recurseIntoAttrs {
-    system-f-in-agda = import ../papers/system-f-in-agda { inherit buildLatexDoc; };
-    eutxo = import ../papers/eutxo { inherit buildLatexDoc; };
-    utxoma = import ../papers/utxoma { inherit buildLatexDoc; };
-    eutxoma = import ../papers/eutxoma { inherit buildLatexDoc; };
+    system-f-in-agda = nativeOnly (import ../papers/system-f-in-agda { inherit buildLatexDoc; });
+    eutxo = nativeOnly (import ../papers/eutxo { inherit buildLatexDoc; });
+    utxoma = nativeOnly (import ../papers/utxoma { inherit buildLatexDoc; });
+    eutxoma = nativeOnly (import ../papers/eutxoma { inherit buildLatexDoc; });
     # This paper cannot be built via `buildLatexDoc` as the others because it features
     # a somewhat more complex setup including some additional artifact that has to be compiled.
-    unraveling-recursion = pkgs.callPackage ../papers/unraveling-recursion/default.nix { agda = agdaWithStdlib; inherit latex; };
+    unraveling-recursion = nativeOnly (pkgs.callPackage ../papers/unraveling-recursion/default.nix { agda = agdaWithStdlib; inherit latex; });
   };
 
-  plutus-core-spec = import ../plutus-core-spec { inherit buildLatexDoc; };
-  multi-currency = import ../notes/multi-currency { inherit buildLatexDoc; };
-  extended-utxo-spec = import ../extended-utxo-spec { inherit buildLatexDoc; };
-  lazy-machine = import ../notes/fomega/lazy-machine { inherit buildLatexDoc; };
-  plutus-report = import ../plutus-report { inherit buildLatexDoc; };
-  cost-model-notes = import ../notes/cost-model-notes { inherit buildLatexDoc; };
+  plutus-core-spec = nativeOnly (import ../plutus-core-spec { inherit buildLatexDoc; });
+  multi-currency = nativeOnly (import ../notes/multi-currency { inherit buildLatexDoc; });
+  extended-utxo-spec = nativeOnly (import ../extended-utxo-spec { inherit buildLatexDoc; });
+  lazy-machine = nativeOnly (import ../notes/fomega/lazy-machine { inherit buildLatexDoc; });
+  plutus-report = nativeOnly (import ../plutus-report { inherit buildLatexDoc; });
+  cost-model-notes = nativeOnly (import ../notes/cost-model-notes { inherit buildLatexDoc; });
 
-  site = pkgs.callPackage ../doc {
+  site = nativeOnly (pkgs.callPackage ../doc {
     inherit (plutus) sphinx-markdown-tables sphinxemoji;
     inherit (plutus.sphinxcontrib-haddock) sphinxcontrib-haddock sphinxcontrib-domaintools;
     combined-haddock = plutus.plutus-haddock-combined;
     pythonPackages = pkgs.python3Packages;
-  };
+  });
 
-  build-and-serve-docs = pkgs.writeShellScriptBin "build-and-serve-docs" ''
+  build-and-serve-docs = nativeOnly (pkgs.writeShellScriptBin "build-and-serve-docs" ''
     cd $(nix-build default.nix -A docs.site) && \
     ${pkgs.python3}/bin/python3 -m http.server 8002
-  '';
+  '');
 }

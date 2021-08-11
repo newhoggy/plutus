@@ -1,5 +1,6 @@
 { pkgs, gitignore-nix, haskell, webCommon, webCommonMarlowe, webCommonPlayground, buildPursPackage, buildNodeModules, filterNpm }:
 let
+  nativeOnly = pkgs.lib.meta.addMetaAttrs { platforms = with pkgs.lib.platforms; [ linux darwin ]; };
   playground-exe = haskell.packages.marlowe-playground-server.components.exes.marlowe-playground-server;
 
   build-playground-exe = "$(nix-build --quiet --no-build-output ../default.nix -A plutus.haskell.packages.marlowe-playground-server.components.exes.marlowe-playground-server)";
@@ -7,30 +8,30 @@ let
   build-ghc-with-marlowe = "$(nix-build --quiet --no-build-output -E '(import ./.. {}).plutus.haskell.project.ghcWithPackages(ps: [ ps.marlowe ])')";
 
   # Output containing the purescript bridge code
-  generated-purescript = pkgs.runCommand "marlowe-playground-purescript" { } ''
+  generated-purescript = nativeOnly (pkgs.runCommand "marlowe-playground-purescript" { } ''
     mkdir $out
     ${playground-exe}/bin/marlowe-playground-server psgenerator $out
-  '';
+  '');
 
   # generate-purescript: script to create purescript bridge code
-  generate-purescript = pkgs.writeShellScriptBin "marlowe-playground-generate-purs" ''
+  generate-purescript = nativeOnly (pkgs.writeShellScriptBin "marlowe-playground-generate-purs" ''
     rm -rf ./generated
     ${build-playground-exe}/bin/marlowe-playground-server psgenerator generated
-  '';
+  '');
 
   # start-backend: script to start the plutus-playground-server
   #
   # Note-1: We need to add ghc to the path because the server provides /runghc
   # which needs ghc and dependencies.
   # Note-2: We want to avoid to pull the huge closure in so we use $(nix-build) instead
-  start-backend = pkgs.writeShellScriptBin "marlowe-playground-server" ''
+  start-backend = nativeOnly (pkgs.writeShellScriptBin "marlowe-playground-server" ''
     echo "marlowe-playground-server: for development use only"
     GHC_WITH_PKGS=${build-ghc-with-marlowe}
     export PATH=$GHC_WITH_PKGS/bin:$PATH
     export FRONTEND_URL=https://localhost:8009
 
     ${build-playground-exe}/bin/marlowe-playground-server webserver
-  '';
+  '');
 
   cleanSrc = gitignore-nix.gitignoreSource ./.;
 
@@ -43,7 +44,7 @@ let
     };
   };
 
-  client = buildPursPackage {
+  client = nativeOnly (buildPursPackage {
     inherit pkgs nodeModules;
     src = cleanSrc;
     checkPhase = ''
@@ -58,7 +59,7 @@ let
     };
     packages = pkgs.callPackage ./packages.nix { };
     spagoPackages = pkgs.callPackage ./spago-packages.nix { };
-  };
+  });
 in
 {
   inherit client generate-purescript start-backend;

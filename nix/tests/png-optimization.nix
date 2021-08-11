@@ -6,6 +6,7 @@ in
 runCommand "png-optimization-check"
 {
   buildInputs = [ fixPngOptimization diffutils glibcLocales ];
+  meta.platforms = with lib.platforms; [ linux darwin ];
 } ''
   set +e
   cp -a ${src'} orig

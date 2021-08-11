@@ -1,5 +1,6 @@
 { pkgs, lib, gitignore-nix, haskell, webCommon, webCommonPlutus, webCommonPlayground, buildPursPackage, buildNodeModules, filterNpm }:
 let
+  nativeOnly = pkgs.lib.meta.addMetaAttrs { platforms = with pkgs.lib.platforms; [ linux darwin ]; };
   playground-exe = haskell.packages.plutus-playground-server.components.exes.plutus-playground-server;
 
   build-playground-exe = "$(nix-build --quiet --no-build-output ../default.nix -A plutus.haskell.packages.plutus-playground-server.components.exes.plutus-playground-server)";
@@ -27,20 +28,20 @@ let
   #
   # * Note-2: This command is supposed to be available in the nix-shell but want
   # to avoid plutus-core in the shell closure so we do $(nix-build ..) instead
-  generate-purescript = pkgs.writeShellScriptBin "plutus-playground-generate-purs" ''
+  generate-purescript = nativeOnly (pkgs.writeShellScriptBin "plutus-playground-generate-purs" ''
     GHC_WITH_PKGS=${build-ghc-with-plutus}
     export PATH=$GHC_WITH_PKGS/bin:$PATH
 
     rm -rf ./generated
     ${build-playground-exe}/bin/plutus-playground-server psgenerator generated
-  '';
+  '');
 
   # start-backend: script to start the plutus-playground-server
   #
   # Note-1: We need to add ghc to the path because the server provides /runghc
   # which needs ghc and dependencies.
   # Note-2: We want to avoid to pull the huge closure in so we use $(nix-build) instead
-  start-backend = pkgs.writeShellScriptBin "plutus-playground-server" ''
+  start-backend = nativeOnly (pkgs.writeShellScriptBin "plutus-playground-server" ''
     echo "plutus-playground-server: for development use only"
     GHC_WITH_PKGS=${build-ghc-with-plutus}
     export PATH=$GHC_WITH_PKGS/bin:$PATH
@@ -50,7 +51,7 @@ let
     export GITHUB_CALLBACK_PATH=https://localhost:8009/api/oauth/github/callback
 
     ${build-playground-exe}/bin/plutus-playground-server webserver "$@"
-  '';
+  '');
 
   cleanSrc = gitignore-nix.gitignoreSource ./.;
 
@@ -60,7 +61,7 @@ let
     packageLockJson = ./package-lock.json;
   };
 
-  client = buildPursPackage {
+  client = nativeOnly (buildPursPackage {
     inherit pkgs nodeModules;
     src = cleanSrc;
     name = "plutus-playground-client";
@@ -78,7 +79,7 @@ let
     };
     packages = pkgs.callPackage ./packages.nix { };
     spagoPackages = pkgs.callPackage ./spago-packages.nix { };
-  };
+  });
 in
 {
   inherit client generate-purescript start-backend;

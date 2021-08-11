@@ -2,7 +2,10 @@
 let
   puc-scripts-invoker = haskell.packages.plutus-use-cases.components.exes.plutus-use-cases-scripts;
 
-  generated-puc-scripts-output = pkgs.runCommand "plutus-use-cases-scripts-output" { } ''
+  generated-puc-scripts-output = pkgs.runCommand "plutus-use-cases-scripts-output"
+    {
+      meta.platforms = with pkgs.lib.platforms; [ linux darwin ];
+    } ''
     mkdir -p $out/scripts
     mkdir -p $out/transactions
     ${puc-scripts-invoker}/bin/plutus-use-cases-scripts $out/scripts scripts

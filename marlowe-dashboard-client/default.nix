@@ -1,16 +1,17 @@
 { pkgs, gitignore-nix, haskell, webCommon, webCommonMarlowe, buildPursPackage, buildNodeModules, filterNpm, plutus-pab }:
 let
+  nativeOnly = pkgs.lib.meta.addMetaAttrs { platforms = with pkgs.lib.platforms; [ linux darwin ]; };
   marlowe-invoker = haskell.packages.marlowe.components.exes.marlowe-pab;
 
-  generated-purescript = pkgs.runCommand "marlowe-pab-purescript" { } ''
+  generated-purescript = nativeOnly (pkgs.runCommand "marlowe-pab-purescript" { } ''
     mkdir $out
     ln -s ${haskell.packages.plutus-pab.src}/plutus-pab.yaml.sample plutus-pab.yaml
     ${plutus-pab.server-setup-invoker}/bin/plutus-pab-setup psgenerator $out
     ${plutus-pab.test-generator}/bin/plutus-pab-test-psgenerator $out
     ${marlowe-invoker}/bin/marlowe-pab --config plutus-pab.yaml psapigenerator $out
-  '';
+  '');
 
-  generate-purescript = pkgs.writeShellScriptBin "marlowe-pab-generate-purs" ''
+  generate-purescript = nativeOnly (pkgs.writeShellScriptBin "marlowe-pab-generate-purs" ''
     generatedDir=./generated
     rm -rf $generatedDir
     # There might be local modifications so only copy when missing
@@ -18,7 +19,7 @@ let
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-setup-invoker)/bin/plutus-pab-setup psgenerator $generatedDir
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.test-generator)/bin/plutus-pab-test-psgenerator $generatedDir
     $(nix-build ../default.nix --quiet --no-build-output -A marlowe-dashboard.marlowe-invoker)/bin/marlowe-pab --config plutus-pab.yaml psapigenerator $generatedDir
-  '';
+  '');
 
   cleanSrc = gitignore-nix.gitignoreSource ./.;
 
@@ -29,7 +30,7 @@ let
     githubSourceHashMap = { };
   };
 
-  client = buildPursPackage {
+  client = nativeOnly (buildPursPackage {
     inherit pkgs nodeModules;
     src = cleanSrc;
     checkPhase = ''
@@ -43,7 +44,7 @@ let
     };
     packages = pkgs.callPackage ./packages.nix { };
     spagoPackages = pkgs.callPackage ./spago-packages.nix { };
-  };
+  });
 in
 {
   inherit (plutus-pab) server-setup-invoker start-backend;

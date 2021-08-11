@@ -1,14 +1,15 @@
 { pkgs, gitignore-nix, haskell, webCommon, webCommonMarlowe, buildPursPackage, buildNodeModules, filterNpm, marlowe-dashboard }:
 let
+  nativeOnly = pkgs.lib.meta.addMetaAttrs { platforms = with pkgs.lib.platforms; [ linux darwin ]; };
   cleanSrc = gitignore-nix.gitignoreSource ../marlowe-dashboard-client/.;
 
   fake-pab-exe = haskell.packages.fake-pab.components.exes.fake-pab-server;
 
   # Output containing the purescript bridge code
-  fake-pab-generated-purescript = pkgs.runCommand "marlowe-fake-pab-purescript" { } ''
+  fake-pab-generated-purescript = nativeOnly (pkgs.runCommand "marlowe-fake-pab-purescript" { } ''
     mkdir $out
     ${fake-pab-exe}/bin/fake-pab-server psgenerator $out
-  '';
+  '');
 
   nodeModules = buildNodeModules {
     projectDir = filterNpm cleanSrc;
@@ -17,7 +18,7 @@ let
     githubSourceHashMap = { };
   };
 
-  client = buildPursPackage {
+  client = nativeOnly (buildPursPackage {
     inherit pkgs nodeModules;
     src = cleanSrc;
     checkPhase = ''
@@ -32,7 +33,7 @@ let
     };
     packages = pkgs.callPackage ../marlowe-dashboard-client/packages.nix { };
     spagoPackages = pkgs.callPackage ../marlowe-dashboard-client/spago-packages.nix { };
-  };
+  });
 in
 {
   inherit client fake-pab-exe fake-pab-generated-purescript;

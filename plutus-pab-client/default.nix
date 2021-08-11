@@ -1,10 +1,11 @@
 { pkgs, gitignore-nix, haskell, webCommon, webCommonPlutus, buildPursPackage, buildNodeModules, filterNpm }:
 let
+  nativeOnly = pkgs.lib.meta.addMetaAttrs { platforms = with pkgs.lib.platforms; [ linux darwin ]; };
   server-setup-invoker = haskell.packages.plutus-pab.components.exes.plutus-pab-setup;
   server-examples-invoker = haskell.packages.plutus-pab.components.exes.plutus-pab-examples;
   test-generator = haskell.packages.plutus-pab.components.exes.plutus-pab-test-psgenerator;
 
-  generated-purescript = pkgs.runCommand "plutus-pab-purescript" { } ''
+  generated-purescript = pkgs.runCommand "plutus-pab-purescript" { meta.platforms = with pkgs.lib.platforms; [ linux darwin ]; } ''
     mkdir $out
     ln -s ${haskell.packages.plutus-pab.src}/plutus-pab.yaml.sample plutus-pab.yaml
     ${server-setup-invoker}/bin/plutus-pab-setup psgenerator $out
@@ -13,7 +14,7 @@ let
   '';
 
   # For dev usage
-  generate-purescript = pkgs.writeShellScriptBin "plutus-pab-generate-purs" ''
+  generate-purescript = nativeOnly (pkgs.writeShellScriptBin "plutus-pab-generate-purs" ''
     generatedDir=./generated
     rm -rf $generatedDir
     # There might be local modifications so only copy when missing
@@ -21,17 +22,17 @@ let
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-setup-invoker)/bin/plutus-pab-setup psgenerator $generatedDir
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.test-generator)/bin/plutus-pab-test-psgenerator $generatedDir
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-examples-invoker)/bin/plutus-pab-examples --config plutus-pab.yaml psapigenerator $generatedDir
-  '';
+  '');
 
   # For dev usage
-  migrate = pkgs.writeShellScriptBin "plutus-pab-migrate" ''
+  migrate = nativeOnly (pkgs.writeShellScriptBin "plutus-pab-migrate" ''
     # There might be local modifications so only copy when missing
     ! test -f ./plutus-pab.yaml && cp ../plutus-pab/plutus-pab.yaml.sample plutus-pab.yaml
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-examples-invoker)/bin/plutus-pab-examples --config=plutus-pab.yaml migrate
-  '';
+  '');
 
   # For dev usage
-  start-backend = pkgs.writeShellScriptBin "plutus-pab-server" ''
+  start-backend = nativeOnly (pkgs.writeShellScriptBin "plutus-pab-server" ''
     export FRONTEND_URL=https://localhost:8009
     export WEBGHC_URL=http://localhost:8080
     # There might be local modifications so only copy when missing
@@ -39,10 +40,10 @@ let
     # Only execute the migration when the database file does not exist
     ! test -f ./$(yq -r '.dbConfig.dbConfigFile' plutus-pab.yaml) && plutus-pab-migrate
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-examples-invoker)/bin/plutus-pab-examples --config=plutus-pab.yaml webserver
-  '';
+  '');
 
   # For dev usage
-  start-all-servers = pkgs.writeShellScriptBin "plutus-pab-all-servers" ''
+  start-all-servers = nativeOnly (pkgs.writeShellScriptBin "plutus-pab-all-servers" ''
     export FRONTEND_URL=https://localhost:8009
     export WEBGHC_URL=http://localhost:8080
     # There might be local modifications so only copy when missing
@@ -50,10 +51,10 @@ let
     # Only execute the migration when the database file does not exist
     ! test -f ./$(yq -r '.dbConfig.dbConfigFile' plutus-pab.yaml) && plutus-pab-migrate
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-examples-invoker)/bin/plutus-pab-examples --config=plutus-pab.yaml all-servers
-  '';
+  '');
 
   # For dev usage
-  start-all-servers-m = pkgs.writeShellScriptBin "plutus-pab-all-servers-m" ''
+  start-all-servers-m = nativeOnly (pkgs.writeShellScriptBin "plutus-pab-all-servers-m" ''
     export FRONTEND_URL=https://localhost:8009
     export WEBGHC_URL=http://localhost:8080
     # There might be local modifications so only copy when missing
@@ -61,7 +62,7 @@ let
     # Only execute the migration when the database file does not exist
     ! test -f ./$(yq -r '.dbConfig.dbConfigFile' plutus-pab.yaml) && plutus-pab-migrate
     $(nix-build ../default.nix --quiet --no-build-output -A plutus-pab.server-examples-invoker)/bin/plutus-pab-examples --config=plutus-pab.yaml -m all-servers
-  '';
+  '');
 
   cleanSrc = gitignore-nix.gitignoreSource ./.;
 
@@ -72,7 +73,7 @@ let
   };
 
   client =
-    buildPursPackage {
+    nativeOnly (buildPursPackage {
       inherit pkgs nodeModules;
       src = cleanSrc;
       name = "plutus-pab-client";
@@ -89,7 +90,7 @@ let
       '';
       packages = pkgs.callPackage ./packages.nix { };
       spagoPackages = pkgs.callPackage ./spago-packages.nix { };
-    };
+    });
 
   pab-exes = haskell.packages.plutus-pab.components.exes;
 

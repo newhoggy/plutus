@@ -19,6 +19,7 @@ in
 runCommand "purty-check"
 {
   buildInputs = [ fixPurty diffutils glibcLocales ];
+  meta.platforms = with lib.platforms; [ linux darwin ];
 } ''
   set +e
   cp -a ${src'} orig

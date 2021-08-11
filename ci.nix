@@ -11,6 +11,9 @@ let
   # limit supportedSystems to what the CI can actually build
   # currently that is linux and darwin.
   systems = filterSystems supportedSystems;
+  crossSystems =
+    let pkgs = (import ./default.nix { }).pkgs;
+    in { inherit (pkgs.lib.systems.examples) mingwW64; };
 
   # Collects haskell derivations and builds an attrset:
   #
@@ -49,12 +52,13 @@ let
   mkSystemDimension = systems:
     let
       # given a system ("x86_64-linux") return an attrset of derivations to build
-      select = _: system:
+      _select = _: system: crossSystem:
         let
-          packages = import ./default.nix { inherit system checkMaterialization; };
+          packages = import ./default.nix { inherit system crossSystem checkMaterialization; };
+          nativePackages = import ./default.nix { inherit system; };
           pkgs = packages.pkgs;
           plutus = packages.plutus;
-          isBuildable = platformFilterGeneric pkgs system;
+          isBuildable = platformFilterGeneric pkgs (if crossSystem == null then system else crossSystem.config);
         in
         filterAttrsOnlyRecursive (_: drv: isBuildable drv) ({
           # The haskell.nix IFD roots for the Haskell project. We include these so they won't be GCd and will be in the
@@ -64,6 +68,12 @@ let
           # build relevant top level attributes from default.nix
           inherit (packages) docs tests plutus-playground marlowe-playground marlowe-dashboard marlowe-dashboard-fake-pab plutus-pab plutus-use-cases deployment;
 
+          # build all haskell packages and tests
+          haskell = pkgs.recurseIntoAttrs (mkHaskellDimension pkgs plutus.haskell.projectPackages);
+        } // pkgs.lib.optionalAttrs (crossSystem == null) {
+          # no deployment for cross compiled targets
+          inherit (packages) deployment;
+        } // pkgs.lib.optionalAttrs (crossSystem == null) {
           # Build the shell expression to be sure it works on all platforms
           #
           # The shell should never depend on any of our Haskell packages, which can
@@ -80,6 +90,7 @@ let
           haskell = pkgs.recurseIntoAttrs (mkHaskellDimension pkgs plutus.haskell.projectPackages);
         });
     in
-    dimension "System" systems select;
+    dimension "System" systems (name: sys: _select name sys null)
+    // dimension "Cross System" crossSystems (name: crossSys: _select name "x86_64-linux" crossSys);
 in
 mkSystemDimension systems
