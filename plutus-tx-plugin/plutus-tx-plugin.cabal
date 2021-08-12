@@ -66,6 +66,9 @@ library
         transformers -any,
         plutus-tx -any
 
+    if os(windows)
+        buildable: False
+
 test-suite plutus-tx-tests
     type: exitcode-stdio-1.0
     hs-source-dirs: test
@@ -110,3 +113,6 @@ test-suite plutus-tx-tests
     -- NOTE: -g makes the plugin give better errors
     -- NOTE: we disable the simplifier as it simplifies away some tests
     ghc-options: -g -fplugin-opt PlutusTx.Plugin:max-simplifier-iterations=0
+
+    if os(windows)
+        buildable: False
