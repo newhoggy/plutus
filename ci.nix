@@ -55,25 +55,24 @@ let
       _select = _: system: crossSystem:
         let
           packages = import ./default.nix { inherit system crossSystem checkMaterialization; };
-          nativePackages = import ./default.nix { inherit system; };
           pkgs = packages.pkgs;
           plutus = packages.plutus;
           isBuildable = platformFilterGeneric pkgs (if crossSystem == null then system else crossSystem.config);
+          filterCross = x: if crossSystem == null
+            then x
+            else {
+              # When cross compiling only include haskell for now
+              inherit (x) haskell;
+            };
         in
         filterAttrsOnlyRecursive (_: drv: isBuildable drv) ({
           # The haskell.nix IFD roots for the Haskell project. We include these so they won't be GCd and will be in the
           # cache for users
           inherit (plutus.haskell.project) roots;
-        } // pkgs.lib.optionalAttrs (!rootsOnly) {
+        } // pkgs.lib.optionalAttrs (!rootsOnly) (filterCross {
           # build relevant top level attributes from default.nix
           inherit (packages) docs tests plutus-playground marlowe-playground marlowe-dashboard marlowe-dashboard-fake-pab plutus-pab plutus-use-cases deployment;
 
-          # build all haskell packages and tests
-          haskell = pkgs.recurseIntoAttrs (mkHaskellDimension pkgs plutus.haskell.projectPackages);
-        } // pkgs.lib.optionalAttrs (crossSystem == null) {
-          # no deployment for cross compiled targets
-          inherit (packages) deployment;
-        } // pkgs.lib.optionalAttrs (crossSystem == null) {
           # Build the shell expression to be sure it works on all platforms
           #
           # The shell should never depend on any of our Haskell packages, which can
@@ -88,7 +87,7 @@ let
 
           # build all haskell packages and tests
           haskell = pkgs.recurseIntoAttrs (mkHaskellDimension pkgs plutus.haskell.projectPackages);
-        });
+        }));
     in
     dimension "System" systems (name: sys: _select name sys null)
     // dimension "Cross System" crossSystems (name: crossSys: _select name "x86_64-linux" crossSys);
