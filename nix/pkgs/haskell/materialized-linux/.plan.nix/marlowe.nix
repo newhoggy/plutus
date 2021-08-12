@@ -88,7 +88,7 @@
             (hsPkgs."marlowe" or (errorHandler.buildDepError "marlowe"))
             ];
           buildable = true;
-          modules = [ "MarloweContracts" ];
+          modules = [ "MarloweContract" ];
           hsSourceDirs = [ "pab" ];
           mainPath = [
             "Main.hs"
