@@ -58,7 +58,8 @@ let
           pkgs = packages.pkgs;
           plutus = packages.plutus;
           isBuildable = platformFilterGeneric pkgs (if crossSystem == null then system else crossSystem.config);
-          filterCross = x: if crossSystem == null
+          filterCross = x:
+            if crossSystem == null
             then x
             else {
               # When cross compiling only include haskell for now
